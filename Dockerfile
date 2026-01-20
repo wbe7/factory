@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg \
     lsb-release \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Bun (for running the factory script itself)

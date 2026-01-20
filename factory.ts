@@ -152,6 +152,7 @@ async function main() {
                 console.log(`   ✅ Verification Passed!`);
                 taskVerified = true;
                 task.passes = true;
+                task.status = "completed";
                 writeFileSync(PRD_FILE, JSON.stringify(prd, null, 2));
             } else {
                 console.log(`   ❌ Verification Failed.`);
