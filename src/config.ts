@@ -3,13 +3,11 @@ import { DEFAULT_CONFIG } from './types';
 
 /**
  * Parse CLI arguments from process.argv.
+ * Returns ONLY explicitly provided arguments (Partial) to allow proper layering.
  * Supports --flag=value and --flag value formats.
  */
-export function parseArgs(args: string[]): FactoryConfig {
-    const config: FactoryConfig = {
-        goal: null,
-        ...DEFAULT_CONFIG,
-    };
+export function parseArgs(args: string[]): Partial<FactoryConfig> {
+    const config: Partial<FactoryConfig> = {};
 
     let i = 0;
     while (i < args.length) {
@@ -87,41 +85,32 @@ function parseFlag(arg: string, nextArg?: string): [string, string] {
 
 /**
  * Parse environment variables and merge with defaults.
+ * Returns ONLY values that are explicitly set in environment.
  */
 export function parseEnvConfig(): Partial<FactoryConfig> {
     const env = Bun.env;
+    const config: Partial<FactoryConfig> = {};
 
-    return {
-        model: env.FACTORY_MODEL || DEFAULT_CONFIG.model,
-        baseUrl: env.OPENAI_BASE_URL || null,
-        planningCycles: env.FACTORY_PLANNING_CYCLES
-            ? parseInt(env.FACTORY_PLANNING_CYCLES, 10)
-            : DEFAULT_CONFIG.planningCycles,
-        verificationCycles: env.FACTORY_VERIFICATION_CYCLES
-            ? parseInt(env.FACTORY_VERIFICATION_CYCLES, 10)
-            : DEFAULT_CONFIG.verificationCycles,
-        workerIterations: env.FACTORY_WORKER_ITERATIONS
-            ? parseInt(env.FACTORY_WORKER_ITERATIONS, 10)
-            : DEFAULT_CONFIG.workerIterations,
-        timeout: env.FACTORY_TIMEOUT
-            ? parseInt(env.FACTORY_TIMEOUT, 10)
-            : DEFAULT_CONFIG.timeout,
-        maxCost: env.FACTORY_MAX_COST
-            ? parseFloat(env.FACTORY_MAX_COST)
-            : null,
-    };
+    if (env.FACTORY_MODEL) config.model = env.FACTORY_MODEL;
+    if (env.OPENAI_BASE_URL) config.baseUrl = env.OPENAI_BASE_URL;
+    if (env.FACTORY_PLANNING_CYCLES) config.planningCycles = parseInt(env.FACTORY_PLANNING_CYCLES, 10);
+    if (env.FACTORY_VERIFICATION_CYCLES) config.verificationCycles = parseInt(env.FACTORY_VERIFICATION_CYCLES, 10);
+    if (env.FACTORY_WORKER_ITERATIONS) config.workerIterations = parseInt(env.FACTORY_WORKER_ITERATIONS, 10);
+    if (env.FACTORY_TIMEOUT) config.timeout = parseInt(env.FACTORY_TIMEOUT, 10);
+    if (env.FACTORY_MAX_COST) config.maxCost = parseFloat(env.FACTORY_MAX_COST);
+
+    return config;
 }
 
 /**
- * Merge CLI args with env config. CLI takes precedence.
+ * Merge CLI args with env config. Precedence: CLI > Env > Defaults.
  */
-export function mergeConfig(cli: FactoryConfig, env: Partial<FactoryConfig>): FactoryConfig {
+export function mergeConfig(cli: Partial<FactoryConfig>, env: Partial<FactoryConfig>): FactoryConfig {
     return {
         ...DEFAULT_CONFIG,
         ...env,
         ...cli,
-        // Ensure goal from CLI is preserved
-        goal: cli.goal,
+        goal: cli.goal ?? null,
     };
 }
 

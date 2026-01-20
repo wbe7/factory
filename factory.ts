@@ -154,6 +154,9 @@ async function main(): Promise<void> {
                 currentPrd = JSON.parse(jsonDraft) as Prd; // Update for graceful shutdown
             } catch (e) {
                 console.error('❌ Invalid JSON from Architect. Retrying...');
+                if (config.verbose && e instanceof Error) {
+                    console.error(`   Parse Error: ${e.message}`);
+                }
                 continue;
             }
 

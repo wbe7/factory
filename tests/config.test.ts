@@ -68,12 +68,12 @@ describe('CLI Argument Parsing', () => {
         expect(config.maxCost).toBe(5.5);
     });
 
-    test('returns defaults when no args', () => {
+    test('returns empty object when no args', () => {
         const config = parseArgs([]);
-        expect(config.model).toBe(DEFAULT_CONFIG.model);
-        expect(config.timeout).toBe(DEFAULT_CONFIG.timeout);
-        expect(config.planningCycles).toBe(DEFAULT_CONFIG.planningCycles);
-        expect(config.goal).toBeNull();
+        // parseArgs now returns Partial - only explicit values
+        expect(config.model).toBeUndefined();
+        expect(config.timeout).toBeUndefined();
+        expect(config.goal).toBeUndefined();
     });
 
     test('handles multiple flags together', () => {
@@ -136,14 +136,35 @@ describe('Environment Variable Config', () => {
 });
 
 describe('Config Merge', () => {
-    test('CLI args override env config', () => {
+    test('CLI args override env config with proper layering', () => {
         const cli = parseArgs(['--model=cli-model', 'goal']);
         const env = { model: 'env-model', timeout: 7200 };
         const merged = mergeConfig(cli, env);
 
+        // CLI model overrides env model
         expect(merged.model).toBe('cli-model');
-        // CLI parseArgs returns defaults for unset flags, so timeout is 3600 (CLI default)
-        expect(merged.timeout).toBe(3600);
+        // Env timeout used since CLI didn't specify it
+        expect(merged.timeout).toBe(7200);
+        expect(merged.goal).toBe('goal');
+    });
+
+    test('env values used when CLI is empty', () => {
+        const cli = parseArgs(['goal']);
+        const env = { model: 'env-model', timeout: 5000 };
+        const merged = mergeConfig(cli, env);
+
+        expect(merged.model).toBe('env-model');
+        expect(merged.timeout).toBe(5000);
+        expect(merged.goal).toBe('goal');
+    });
+
+    test('defaults used when neither CLI nor env specify values', () => {
+        const cli = parseArgs(['goal']);
+        const env = {};
+        const merged = mergeConfig(cli, env);
+
+        expect(merged.model).toBe(DEFAULT_CONFIG.model);
+        expect(merged.timeout).toBe(DEFAULT_CONFIG.timeout);
         expect(merged.goal).toBe('goal');
     });
 });

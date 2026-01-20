@@ -17,7 +17,7 @@ export async function runOpencode(prompt: string, config: FactoryConfig): Promis
     }
 
     // Write prompt to temp file
-    const tmpPromptFile = `/tmp/factory_prompt_${Date.now()}.md`;
+    const tmpPromptFile = `/tmp/factory_prompt_${crypto.randomUUID()}.md`;
     await Bun.write(tmpPromptFile, prompt);
 
     try {
@@ -42,7 +42,8 @@ export async function runOpencode(prompt: string, config: FactoryConfig): Promis
     } finally {
         // Cleanup temp file
         try {
-            await Bun.write(tmpPromptFile, ''); // Clear
+            const { unlink } = await import('fs/promises');
+            await unlink(tmpPromptFile);
         } catch {
             // Ignore cleanup errors
         }
