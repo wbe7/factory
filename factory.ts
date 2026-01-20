@@ -21,31 +21,33 @@ let shuttingDown = false;
 let currentPrd: Prd | null = null;
 
 /**
+ * Gracefully shut down the factory, saving state.
+ * @param exitCode The exit code to use.
+ */
+async function shutdown(exitCode = 0): Promise<void> {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log('\n🛑 Graceful shutdown...');
+
+    if (currentPrd) {
+        try {
+            await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
+            console.log('💾 State saved to prd.json');
+        } catch (error) {
+            console.error('❌ Failed to save state:', error);
+            process.exit(1);
+        }
+    }
+    process.exit(exitCode);
+}
+
+/**
  * Setup signal handlers for graceful shutdown
  */
-function setupSignalHandlers(config: FactoryConfig): void {
-    const shutdown = async () => {
-        if (shuttingDown) return;
-        shuttingDown = true;
-
-        console.log('\n🛑 Graceful shutdown...');
-
-        if (currentPrd) {
-            try {
-                await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
-                console.log('💾 State saved to prd.json');
-                process.exit(0);
-            } catch (error) {
-                console.error('❌ Failed to save state:', error);
-                process.exit(1);
-            }
-        } else {
-            process.exit(0);
-        }
-    };
-
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+function setupSignalHandlers(): void {
+    process.on('SIGINT', () => shutdown(0));
+    process.on('SIGTERM', () => shutdown(0));
 }
 
 /**
@@ -55,7 +57,7 @@ function setupTimeout(config: FactoryConfig): void {
     if (config.timeout > 0) {
         setTimeout(() => {
             console.error('⏰ Global timeout reached!');
-            process.exit(1);
+            shutdown(1);
         }, config.timeout * 1000);
     }
 }
@@ -105,7 +107,7 @@ async function main(): Promise<void> {
     }
 
     // Setup handlers
-    setupSignalHandlers(config);
+    setupSignalHandlers();
     setupTimeout(config);
 
     // Ensure project directory exists
