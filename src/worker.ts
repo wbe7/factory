@@ -55,7 +55,7 @@ export async function runOpencode(prompt: string, config: FactoryConfig): Promis
  */
 export async function workerLoop(
     prompt: string,
-    config: Pick<FactoryConfig, 'workerIterations' | 'verbose'>,
+    config: FactoryConfig,
     runner: OpencodeRunner = runOpencode as OpencodeRunner
 ): Promise<boolean> {
     for (let i = 0; i < config.workerIterations; i++) {

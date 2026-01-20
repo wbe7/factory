@@ -151,6 +151,7 @@ async function main(): Promise<void> {
                 prdContent = jsonDraft;
                 await createBackup(PRD_FILE);
                 await atomicWrite(PRD_FILE, jsonDraft);
+                currentPrd = JSON.parse(jsonDraft) as Prd; // Update for graceful shutdown
             } catch (e) {
                 console.error('❌ Invalid JSON from Architect. Retrying...');
                 continue;
