@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Generated project directory (created during execution)
+target_project/
+
 # Environment files
 .env
 .env.local
