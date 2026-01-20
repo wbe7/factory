@@ -1,4 +1,6 @@
 import type { FactoryConfig } from './types';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 /**
  * Type for opencode runner function (allows mocking in tests)
@@ -17,8 +19,8 @@ export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: s
         args.push('-m', config.model);
     }
 
-    // Write prompt to temp file
-    const tmpPromptFile = `/tmp/factory_prompt_${crypto.randomUUID()}.md`;
+    // Write prompt to temp file (cross-platform)
+    const tmpPromptFile = join(tmpdir(), `factory_prompt_${crypto.randomUUID()}.md`);
     await Bun.write(tmpPromptFile, prompt);
 
     try {

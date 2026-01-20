@@ -34,12 +34,14 @@ function setupSignalHandlers(config: FactoryConfig): void {
             try {
                 await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
                 console.log('💾 State saved to prd.json');
+                process.exit(0);
             } catch (error) {
                 console.error('❌ Failed to save state:', error);
+                process.exit(1);
             }
+        } else {
+            process.exit(0);
         }
-
-        process.exit(0);
     };
 
     process.on('SIGINT', shutdown);
