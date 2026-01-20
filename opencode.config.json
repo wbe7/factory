@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "auto_approve": true,
+    "external_directory": "allow",
+    "file_write": "allow",
+    "shell_execute": "allow"
+  }
+}

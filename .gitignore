@@ -1,1 +1,26 @@
-gemini-cli.context
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Factory logs and temp files
+factory.log
+prd.json.bak
+prd.json.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+dist/
+*.tgz

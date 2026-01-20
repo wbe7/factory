@@ -1,170 +1,264 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { $ } from "bun"; 
+/**
+ * Factory - Autonomous AI Software Engineering System
+ * Main entry point
+ */
+import { existsSync, readFileSync } from 'fs';
+import { $ } from 'bun';
 
-const PROJECT_DIR = "target_project";
+import { parseArgs, parseEnvConfig, mergeConfig, printHelp } from './src/config';
+import { workerLoop, runOpencode } from './src/worker';
+import { atomicWrite, createBackup, extractJson } from './src/utils';
+import type { FactoryConfig, Prd, PrdTask } from './src/types';
+
+// Constants
+const PROJECT_DIR = 'target_project';
 const PRD_FILE = `${PROJECT_DIR}/prd.json`;
-const PROMPTS_DIR = "prompts";
-const MODEL = "opencode/glm-4.7-free"; 
+const PROMPTS_DIR = 'prompts';
 
-// Config
-const PLANNING_CYCLES = 3;
-const VERIFICATION_CYCLES = 3;
-const RALPH_ITERATIONS = 10;
+// Global state for graceful shutdown
+let shuttingDown = false;
+let currentPrd: Prd | null = null;
 
-async function runAgent(promptFile: string, contextReplacements: Record<string, string>) {
-    let prompt = readFileSync(promptFile, "utf-8");
+/**
+ * Setup signal handlers for graceful shutdown
+ */
+function setupSignalHandlers(config: FactoryConfig): void {
+    const shutdown = async () => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+
+        console.log('\n🛑 Graceful shutdown...');
+
+        if (currentPrd) {
+            try {
+                await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
+                console.log('💾 State saved to prd.json');
+            } catch (error) {
+                console.error('❌ Failed to save state:', error);
+            }
+        }
+
+        process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+}
+
+/**
+ * Setup global timeout
+ */
+function setupTimeout(config: FactoryConfig): void {
+    if (config.timeout > 0) {
+        setTimeout(() => {
+            console.error('⏰ Global timeout reached!');
+            process.exit(1);
+        }, config.timeout * 1000);
+    }
+}
+
+/**
+ * Run an agent with the given prompt file and context replacements
+ */
+async function runAgent(
+    promptFile: string,
+    contextReplacements: Record<string, string>,
+    config: FactoryConfig
+): Promise<string> {
+    let prompt = readFileSync(promptFile, 'utf-8');
+
     for (const [key, value] of Object.entries(contextReplacements)) {
         prompt = prompt.replace(key, value);
     }
 
-    const tmpPromptFile = `/tmp/agent_prompt_${Date.now()}.md`;
-    writeFileSync(tmpPromptFile, prompt);
+    if (config.verbose) {
+        console.log(`🤖 Running agent: ${promptFile}`);
+    }
 
-    try {
-        console.log(`🤖 Agent (${promptFile})...`);
-        const proc = Bun.spawn(["bash", "run_agent.sh", tmpPromptFile, MODEL], {
-            stdout: "pipe",
-            stderr: "inherit",
-        });
-        const output = await new Response(proc.stdout).text();
-        await proc.exited;
-        if (proc.exitCode !== 0) throw new Error("Agent failed");
-        return output.trim();
-    } catch (e) { throw e; }
+    if (config.mockLlm) {
+        // Return mock response for testing
+        return 'MOCK_RESPONSE';
+    }
+
+    return await runOpencode(prompt, config);
 }
 
-function extractJson(text: string): string {
-    const match = text.match(/```json\n([\s\S]*?)\n```/);
-    return match ? match[1] : text;
-}
+/**
+ * Main factory execution
+ */
+async function main(): Promise<void> {
+    // Parse configuration
+    const cliConfig = parseArgs(process.argv.slice(2));
+    const envConfig = parseEnvConfig();
+    const config = mergeConfig(cliConfig, envConfig);
 
-async function main() {
-    const goal = process.argv[2];
-    console.log(`🏭 AI Factory v3. Goal: "${goal || 'Resume'}"`);
+    if (!config.quiet) {
+        console.log(`🏭 Factory. Goal: "${config.goal || 'Resume'}"`);
+        if (config.verbose) {
+            console.log(`   Model: ${config.model}`);
+            if (config.baseUrl) console.log(`   Base URL: ${config.baseUrl}`);
+            console.log(`   Timeout: ${config.timeout}s`);
+        }
+    }
 
+    // Setup handlers
+    setupSignalHandlers(config);
+    setupTimeout(config);
+
+    // Ensure project directory exists
     if (!existsSync(PROJECT_DIR)) {
         await $`mkdir -p ${PROJECT_DIR}`;
         await $`cd ${PROJECT_DIR} && git init`;
     }
 
+    // --- DRY RUN MODE ---
+    if (config.dryRun) {
+        console.log('🔍 Dry run mode - would execute with:', {
+            model: config.model,
+            goal: config.goal,
+            planningCycles: config.planningCycles,
+            verificationCycles: config.verificationCycles,
+        });
+        process.exit(0);
+    }
+
     // --- PHASE 1: PLANNING ---
-    if (goal) { // Only plan if there is a new goal
-        let currentPrd = existsSync(PRD_FILE) ? readFileSync(PRD_FILE, "utf-8") : "{}";
-        let mode = existsSync(PRD_FILE) ? "UPDATE_PROJECT" : "NEW_PROJECT";
-        
+    if (config.goal) {
+        let prdContent = existsSync(PRD_FILE) ? readFileSync(PRD_FILE, 'utf-8') : '{}';
+        const mode = existsSync(PRD_FILE) ? 'UPDATE_PROJECT' : 'NEW_PROJECT';
+
         let planApproved = false;
         let attempt = 0;
-        let criticFeedback = "";
+        let criticFeedback = '';
 
-        while (!planApproved && attempt < PLANNING_CYCLES) {
+        while (!planApproved && attempt < config.planningCycles) {
             attempt++;
-            console.log(`\n📐 Planning Cycle ${attempt}/${PLANNING_CYCLES}`);
+            if (!config.quiet) {
+                console.log(`\n📐 Planning Cycle ${attempt}/${config.planningCycles}`);
+            }
 
             // 1. Architect
             const architectOutput = await runAgent(`${PROMPTS_DIR}/architect.md`, {
-                "{{GOAL}}": goal + (criticFeedback ? `\n\nCRITIC FEEDBACK: ${criticFeedback}` : ""),
-                "{{CURRENT_PRD}}": currentPrd,
-                "{{MODE}}": mode
-            });
-            
-            let jsonDraft = extractJson(architectOutput);
+                '{{GOAL}}': config.goal + (criticFeedback ? `\n\nCRITIC FEEDBACK: ${criticFeedback}` : ''),
+                '{{CURRENT_PRD}}': prdContent,
+                '{{MODE}}': mode,
+            }, config);
+
+            const jsonDraft = extractJson(architectOutput);
             try {
                 JSON.parse(jsonDraft); // Validate
-                currentPrd = jsonDraft; // Update working draft
-                writeFileSync(PRD_FILE, jsonDraft);
+                prdContent = jsonDraft;
+                await createBackup(PRD_FILE);
+                await atomicWrite(PRD_FILE, jsonDraft);
             } catch (e) {
-                console.error("❌ Invalid JSON from Architect. Retrying...");
+                console.error('❌ Invalid JSON from Architect. Retrying...');
                 continue;
             }
 
             // 2. Critic
             const critique = await runAgent(`${PROMPTS_DIR}/critic.md`, {
-                "{{PRD_CONTENT}}": currentPrd
-            });
+                '{{PRD_CONTENT}}': prdContent,
+            }, config);
 
-            if (critique.includes("NO_CRITICAL_ISSUES")) {
-                console.log("✅ Plan Approved!");
+            if (critique.includes('NO_CRITICAL_ISSUES')) {
+                if (!config.quiet) console.log('✅ Plan Approved!');
                 planApproved = true;
             } else {
-                console.log("⚠️ Critic found issues. Refining...");
+                if (!config.quiet) console.log('⚠️ Critic found issues. Refining...');
                 criticFeedback = critique;
             }
+        }
+
+        if (!planApproved) {
+            console.error('⛔ Failed to approve plan after maximum cycles');
+            process.exit(1);
         }
     }
 
     // --- PHASE 2: EXECUTION ---
-    console.log("\n🔨 Execution Phase");
-    
+    if (!config.quiet) console.log('\n🔨 Execution Phase');
+
     while (true) {
         if (!existsSync(PRD_FILE)) break;
-        const prd = JSON.parse(readFileSync(PRD_FILE, "utf-8"));
-        const task = prd.user_stories.find((t: any) => !t.passes);
+
+        currentPrd = JSON.parse(readFileSync(PRD_FILE, 'utf-8')) as Prd;
+        const task = currentPrd.user_stories.find((t: PrdTask) => !t.passes);
 
         if (!task) {
-            console.log("🎉 All tasks completed!");
+            if (!config.quiet) console.log('🎉 All tasks completed!');
             break;
         }
 
-        console.log(`\n👉 Task #${task.id}: ${task.title}`);
-        
+        if (!config.quiet) console.log(`\n👉 Task #${task.id}: ${task.title}`);
+
         let taskVerified = false;
         let verifyAttempt = 0;
-        let verifierFeedback = "";
+        let verifierFeedback = '';
 
-        while (!taskVerified && verifyAttempt < VERIFICATION_CYCLES) {
+        while (!taskVerified && verifyAttempt < config.verificationCycles) {
             verifyAttempt++;
-            
-            // 1. Worker (Ralph Loop)
-            console.log(`   👷 Worker Loop (Attempt ${verifyAttempt})...`);
-            
-            // Inject verifier feedback into task description for Ralph if needed
+
+            // 1. Worker Loop (Native - replaces Ralph)
+            if (!config.quiet) console.log(`   👷 Worker Loop (Attempt ${verifyAttempt})...`);
+
             let taskDesc = task.description;
             if (verifierFeedback) {
                 taskDesc += `\n\nFIX REQUEST: ${verifierFeedback}`;
             }
 
-            const workerPromptRaw = readFileSync(`${PROMPTS_DIR}/worker.md`, "utf-8");
+            const workerPromptRaw = readFileSync(`${PROMPTS_DIR}/worker.md`, 'utf-8');
             const workerPrompt = workerPromptRaw
-                .replace("{{TASK_ID}}", task.id)
-                .replace("{{TASK_DESCRIPTION}}", taskDesc)
-                .replace("{{TASK_CRITERIA}}", JSON.stringify(task.acceptance_criteria));
+                .replace('{{TASK_ID}}', task.id)
+                .replace('{{TASK_DESCRIPTION}}', taskDesc)
+                .replace('{{TASK_CRITERIA}}', JSON.stringify(task.acceptance_criteria));
+
+            // Change to project directory for worker
+            const originalCwd = process.cwd();
+            process.chdir(PROJECT_DIR);
 
             try {
-                // Escape single quotes for bash string
-                const safePrompt = workerPrompt.replace(/'/g, "'\\''");
-                const cmd = `cd ${PROJECT_DIR} && ralph '${safePrompt}' --max-iterations ${RALPH_ITERATIONS} --completion-promise "COMPLETE"`;
-                await $`bash -c ${cmd}`;
-            } catch (e) {
-                console.error("Ralph failed/timed out.");
-                // We let Verifier check state anyway, maybe it passed partly? Or retry loop.
+                const completed = await workerLoop(workerPrompt, config, runOpencode);
+                if (!completed && config.verbose) {
+                    console.log('   ⚠️ Worker did not complete task within iterations');
+                }
+            } finally {
+                process.chdir(originalCwd);
             }
 
             // 2. Verifier
-            console.log(`   🕵️ Verifier checking...`);
+            if (!config.quiet) console.log('   🕵️ Verifier checking...');
             const verifyResult = await runAgent(`${PROMPTS_DIR}/verifier.md`, {
-                "{{TASK_ID}}": task.id,
-                "{{TASK_TITLE}}": task.title,
-                "{{TASK_CRITERIA}}": JSON.stringify(task.acceptance_criteria)
-            });
+                '{{TASK_ID}}': task.id,
+                '{{TASK_TITLE}}': task.title,
+                '{{TASK_CRITERIA}}': JSON.stringify(task.acceptance_criteria),
+            }, config);
 
-            if (verifyResult.includes("VERIFICATION_PASSED")) {
-                console.log(`   ✅ Verification Passed!`);
+            if (verifyResult.includes('VERIFICATION_PASSED')) {
+                if (!config.quiet) console.log('   ✅ Verification Passed!');
                 taskVerified = true;
                 task.passes = true;
-                task.status = "completed";
-                writeFileSync(PRD_FILE, JSON.stringify(prd, null, 2));
+                task.status = 'completed';
+
+                await createBackup(PRD_FILE);
+                await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
             } else {
-                console.log(`   ❌ Verification Failed.`);
+                if (!config.quiet) console.log('   ❌ Verification Failed.');
                 verifierFeedback = verifyResult;
             }
         }
-        
+
         if (!taskVerified) {
-            console.error("⛔ Task failed verification limit. Stopping factory.");
+            task.status = 'failed';
+            await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
+            console.error('⛔ Task failed verification limit. Stopping factory.');
             process.exit(1);
         }
     }
 }
 
-main();
+// Run
+main().catch((error) => {
+    console.error('💥 Fatal error:', error);
+    process.exit(1);
+});

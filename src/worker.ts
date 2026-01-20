@@ -1,0 +1,84 @@
+import type { FactoryConfig } from './types';
+
+/**
+ * Type for opencode runner function (allows mocking in tests)
+ */
+export type OpencodeRunner = (prompt: string, config: FactoryConfig) => Promise<string>;
+
+/**
+ * Run opencode with the given prompt.
+ * Returns the output text.
+ */
+export async function runOpencode(prompt: string, config: FactoryConfig): Promise<string> {
+    const args = ['run'];
+
+    if (config.model) {
+        args.push('-m', config.model);
+    }
+
+    // Write prompt to temp file
+    const tmpPromptFile = `/tmp/factory_prompt_${Date.now()}.md`;
+    await Bun.write(tmpPromptFile, prompt);
+
+    try {
+        const proc = Bun.spawn(['opencode', ...args], {
+            stdin: Bun.file(tmpPromptFile),
+            stdout: 'pipe',
+            stderr: 'inherit',
+            env: {
+                ...process.env,
+                ...(config.baseUrl ? { OPENAI_BASE_URL: config.baseUrl } : {}),
+            },
+        });
+
+        const output = await new Response(proc.stdout).text();
+        await proc.exited;
+
+        if (proc.exitCode !== 0) {
+            throw new Error(`opencode exited with code ${proc.exitCode}`);
+        }
+
+        return output.trim();
+    } finally {
+        // Cleanup temp file
+        try {
+            await Bun.write(tmpPromptFile, ''); // Clear
+        } catch {
+            // Ignore cleanup errors
+        }
+    }
+}
+
+/**
+ * Native worker loop that replaces ralph-wiggum.
+ * Calls opencode repeatedly until COMPLETE promise is found or max iterations reached.
+ */
+export async function workerLoop(
+    prompt: string,
+    config: Pick<FactoryConfig, 'workerIterations' | 'verbose'>,
+    runner: OpencodeRunner = runOpencode as OpencodeRunner
+): Promise<boolean> {
+    for (let i = 0; i < config.workerIterations; i++) {
+        if (config.verbose) {
+            console.log(`   👷 Worker iteration ${i + 1}/${config.workerIterations}...`);
+        }
+
+        try {
+            const output = await runner(prompt, config as FactoryConfig);
+
+            if (output.includes('<promise>COMPLETE</promise>')) {
+                if (config.verbose) {
+                    console.log('   ✅ Worker completed task');
+                }
+                return true;
+            }
+        } catch (error) {
+            if (config.verbose) {
+                console.error(`   ❌ Worker iteration ${i + 1} failed:`, error);
+            }
+            // Continue to next iteration
+        }
+    }
+
+    return false; // Max iterations reached without completion
+}
