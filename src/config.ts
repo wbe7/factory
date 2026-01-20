@@ -8,6 +8,7 @@ import { DEFAULT_CONFIG } from './types';
  */
 export function parseArgs(args: string[]): Partial<FactoryConfig> {
     const config: Partial<FactoryConfig> = {};
+    const BOOLEAN_FLAGS = new Set(['dry-run', 'mock-llm', 'verbose', 'quiet']);
 
     let i = 0;
     while (i < args.length) {
@@ -58,7 +59,7 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
             }
 
             // Skip next arg if it was consumed as value
-            if (!arg.includes('=') && value && !['dry-run', 'mock-llm', 'verbose', 'quiet'].includes(key)) {
+            if (!arg.includes('=') && value && !BOOLEAN_FLAGS.has(key)) {
                 i++;
             }
         } else if (!arg.startsWith('-')) {

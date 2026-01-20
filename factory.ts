@@ -217,17 +217,10 @@ async function main(): Promise<void> {
                 .replace('{{TASK_DESCRIPTION}}', taskDesc)
                 .replace('{{TASK_CRITERIA}}', JSON.stringify(task.acceptance_criteria));
 
-            // Change to project directory for worker
-            const originalCwd = process.cwd();
-            process.chdir(PROJECT_DIR);
-
-            try {
-                const completed = await workerLoop(workerPrompt, config, runOpencode);
-                if (!completed && config.verbose) {
-                    console.log('   ⚠️ Worker did not complete task within iterations');
-                }
-            } finally {
-                process.chdir(originalCwd);
+            // Run worker in the project directory without changing the global CWD
+            const completed = await workerLoop(workerPrompt, config, runOpencode, PROJECT_DIR);
+            if (!completed && config.verbose) {
+                console.log('   ⚠️ Worker did not complete task within iterations');
             }
 
             // 2. Verifier

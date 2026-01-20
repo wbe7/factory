@@ -3,13 +3,14 @@ import type { FactoryConfig } from './types';
 /**
  * Type for opencode runner function (allows mocking in tests)
  */
-export type OpencodeRunner = (prompt: string, config: FactoryConfig) => Promise<string>;
+export type OpencodeRunner = (prompt: string, config: FactoryConfig, cwd?: string) => Promise<string>;
 
 /**
  * Run opencode with the given prompt.
  * Returns the output text.
+ * @param cwd - Optional working directory for the opencode process
  */
-export async function runOpencode(prompt: string, config: FactoryConfig): Promise<string> {
+export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: string): Promise<string> {
     const args = ['run'];
 
     if (config.model) {
@@ -22,6 +23,7 @@ export async function runOpencode(prompt: string, config: FactoryConfig): Promis
 
     try {
         const proc = Bun.spawn(['opencode', ...args], {
+            cwd: cwd, // Pass cwd to spawn instead of using process.chdir
             stdin: Bun.file(tmpPromptFile),
             stdout: 'pipe',
             stderr: 'inherit',
@@ -53,11 +55,13 @@ export async function runOpencode(prompt: string, config: FactoryConfig): Promis
 /**
  * Native worker loop that replaces ralph-wiggum.
  * Calls opencode repeatedly until COMPLETE promise is found or max iterations reached.
+ * @param cwd - Optional working directory for opencode execution
  */
 export async function workerLoop(
     prompt: string,
     config: FactoryConfig,
-    runner: OpencodeRunner = runOpencode as OpencodeRunner
+    runner: OpencodeRunner = runOpencode as OpencodeRunner,
+    cwd?: string
 ): Promise<boolean> {
     for (let i = 0; i < config.workerIterations; i++) {
         if (config.verbose) {
@@ -65,7 +69,7 @@ export async function workerLoop(
         }
 
         try {
-            const output = await runner(prompt, config as FactoryConfig);
+            const output = await runner(prompt, config, cwd);
 
             if (output.includes('<promise>COMPLETE</promise>')) {
                 if (config.verbose) {
