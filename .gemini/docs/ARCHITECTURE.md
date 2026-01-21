@@ -211,6 +211,22 @@ When Factory runs Docker commands inside the container (e.g., `docker-compose up
 > - Consider using rootless Docker on the host
 > - Future: Implement command allowlist for docker operations
 
+### 4.4. Docker Build (Multi-Arch)
+
+Always build for both x86 and ARM (Apple Silicon):
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t wbe7/factory:phase1 \
+  -t wbe7/factory:latest \
+  --push .
+```
+
+| Tag | Purpose |
+|-----|---------|
+| `wbe7/factory:latest` | Production, stable |
+| `wbe7/factory:phaseN` | Per-phase releases |
+
 ## 5. Future Architecture (Worktree Isolation)
 
 ```mermaid

@@ -36,12 +36,19 @@ git push -u origin feature/phase-2-worktree
 # 2. Create PR
 gh pr create --title "feat(phase2): Implement Git Worktree Isolation" --body "## Summary\n- Added worktree support\n- Added tests"
 
-# 3. AI Review Loop (Iterative)
-gh pr comment <PR_NUMBER> --body "/gemini review"
+# 3. AI Review Loop (Iterative) - Use review-manager skill
+python3 ~/.agent/skills/review-manager/scripts/manage_reviews.py request <PR_NUMBER>
+python3 ~/.agent/skills/review-manager/scripts/manage_reviews.py wait <PR_NUMBER>  # MUST wait 3-5 min!
+python3 ~/.agent/skills/review-manager/scripts/manage_reviews.py list <PR_NUMBER>
+# For each finding: fix code, then resolve the thread:
+python3 ~/.agent/skills/review-manager/scripts/manage_reviews.py resolve <THREAD_ID> "Fixed: <description>"
+# Repeat until list returns []
 
 # 4. Merge
 gh pr merge <PR_NUMBER> --squash --delete-branch
 ```
+
+> ⚠️ **CRITICAL**: Never interrupt `wait` command. Gemini reviews take 3-5 minutes. Always wait for completion before checking `list`.
 
 ### 2.3. Phase Handoff
 After finishing a phase:

@@ -27,19 +27,22 @@ ENV PATH="$BUN_INSTALL/bin:$PATH"
 
 # Install Factory Dependencies globally
 # - opencode-ai: The LLM interface
-# - @th0rgal/ralph-wiggum: The Coding Agent
-RUN bun install -g opencode-ai @th0rgal/ralph-wiggum
+RUN bun install -g opencode-ai
 
 # Set working directory
 WORKDIR /app
 
 # Copy Factory Core
 COPY factory.ts .
-COPY run_agent.sh .
+COPY src/ ./src/
 COPY prompts/ ./prompts/
 
+# Copy opencode config for non-interactive mode
+RUN mkdir -p /root/.config/opencode
+COPY opencode.config.json /root/.config/opencode/config.json
+
 # Ensure executable permissions
-RUN chmod +x run_agent.sh
+RUN chmod +x factory.ts
 
 # Define volume for the generated project
 # Users should mount their host directory here to persist files

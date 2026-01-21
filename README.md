@@ -142,15 +142,57 @@ factory -d "Research and document top 5 vector databases"
 # 🛑 Stop: docker stop factory-1737389123
 ```
 
-## 🔧 Advanced Configuration
+## 🔧 Configuration
 
-**Environment Variables:**
-Pass these to the `docker run` command (via the wrapper) if you don't use `~/.config/opencode`.
-*   `OPENAI_API_KEY`
-*   `ANTHROPIC_API_KEY`
-*   `GITHUB_TOKEN` (for cloning private repos)
+### CLI Flags
 
-**Docker Volume Mapping:**
+| Flag | Description |
+|------|-------------|
+| `--model <model>` | LLM model (default: `opencode/glm-4.7-free`) |
+| `--base-url <url>` | Custom LLM endpoint (OpenAI-compatible) |
+| `--planning-cycles <n>` | Max planning iterations (default: 3) |
+| `--verify-cycles <n>` | Max verification iterations (default: 3) |
+| `--worker-iters <n>` | Max worker iterations per task (default: 10) |
+| `--timeout <seconds>` | Global timeout (default: 3600) |
+| `--max-cost <usd>` | Maximum cost limit in USD |
+| `--dry-run` | Output plan without execution |
+| `--mock-llm` | Use mock LLM for testing |
+| `--verbose` | Verbose logging |
+| `--quiet` | Minimal output |
+| `-h, --help` | Show help |
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FACTORY_MODEL` | `opencode/glm-4.7-free` | LLM model to use |
+| `FACTORY_TIMEOUT` | `3600` | Global timeout in seconds |
+| `FACTORY_PLANNING_CYCLES` | `3` | Max planning iterations |
+| `FACTORY_VERIFICATION_CYCLES` | `3` | Max verification iterations |
+| `FACTORY_WORKER_ITERATIONS` | `10` | Max worker iterations |
+| `FACTORY_MAX_COST` | - | Maximum cost limit in USD |
+| `OPENAI_BASE_URL` | - | Custom LLM endpoint |
+| `OPENAI_API_KEY` | - | API key for custom endpoint |
+
+### Self-Hosted Models
+
+Factory supports any OpenAI-compatible endpoint:
+
+```bash
+# Using local Ollama
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+factory --model llama3 "Create REST API"
+
+# Using vLLM on remote server
+export OPENAI_BASE_URL="http://192.168.77.66:8000/v1"
+export OPENAI_API_KEY="your-key"
+factory --model nemotron-nano-30b "Add authentication"
+```
+
+### Docker Volume Mapping
+
 By default, the wrapper maps:
-*   `$(pwd)` -> `/app/target_project` (Your code)
-*   `~/.config/opencode` -> `/root/.config/opencode` (Your auth)
+* `$(pwd)` -> `/app/target_project` (Your code)
+* `~/.config/opencode` -> `/root/.config/opencode` (Your auth)
+* `/var/run/docker.sock` -> `/var/run/docker.sock` (Docker-in-Docker)
+
