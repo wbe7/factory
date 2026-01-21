@@ -112,7 +112,11 @@
 - [ ] Log to both console and `factory.log` file
 - [ ] Add timing metrics (phase duration, agent call duration)
 - [ ] Log token usage (if available from opencode)
+- [ ] Emit structured events for worker iterations (iteration start/end, success/failure)
 - [ ] Add `--log-file` and `--log-level` flags
+- [ ] Add Zod validation for LLM responses (deferred from Phase 1)
+- [ ] Add parseInt/parseFloat input validation (deferred from Phase 1)
+- [ ] Add task status transitions (implementation/verification) (deferred from Phase 1)
 
 **Verification:**
 - Verify `factory.log` is created and contains valid JSON
