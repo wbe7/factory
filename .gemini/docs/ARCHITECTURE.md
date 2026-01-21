@@ -21,12 +21,14 @@
 ```mermaid
 flowchart TB
     subgraph Host["Host Machine"]
-        CLI["factory CLI (wrapper.sh)"]
+        CLI["factory (wrapper.sh)"]
         Config["~/.config/opencode"]
         Project["Project Directory"]
     end
 
     subgraph Docker["Docker Container (wbe7/factory)"]
+        Orchestrator["factory.ts<br/>(Main Orchestrator)"]
+        
         subgraph Planning["Phase 1: Planning Loop"]
             Architect["Architect Agent"]
             Critic["Critic Agent"]
@@ -34,28 +36,37 @@ flowchart TB
         end
 
         subgraph Execution["Phase 2: Execution Loop"]
-            Worker["Worker Agent (Native Loop)"]
+            Worker["Worker Agent<br/>(Native Loop)"]
             Verifier["Verifier Agent"]
         end
 
-        subgraph Runtime["Self-Provisioning Runtime"]
-            Apt["apt-get install"]
-            NPM["npm/bun install"]
+        subgraph Safety["Safety Features"]
+            Shutdown["Graceful Shutdown"]
+            Atomic["Atomic Writes"]
+            Timeout["Global Timeout"]
+        end
+
+        subgraph Runtime["Self-Provisioning"]
+            Apt["apt-get"]
+            NPM["npm/bun"]
             Go["go install"]
         end
     end
 
-    CLI -->|"docker run"| Docker
-    Config -->|"mount"| Docker
-    Project <-->|"mount /app/target_project"| Docker
+    CLI -->|"docker run"| Orchestrator
+    Config -->|"volume mount"| Docker
+    Project <-->|"/app/target_project"| Docker
 
-    Architect -->|"generates"| PRD
+    Orchestrator --> Planning
+    Orchestrator --> Execution
+    Orchestrator --> Safety
+
+    Architect -->|"creates/updates"| PRD
     Critic -->|"validates"| PRD
-    PRD -->|"drives"| Worker
+    PRD -->|"drives tasks"| Worker
     Worker -->|"implements"| Project
-    Verifier -->|"validates"| Worker
-
-    Worker -->|"installs deps"| Runtime
+    Worker -->|"self-provisions"| Runtime
+    Verifier -->|"QA check"| Worker
 ```
 
 ## 3. Component Details

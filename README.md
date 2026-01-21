@@ -1,176 +1,174 @@
-# AI Software Factory v4
+# 🏭 Factory
 
-An autonomous, self-provisioning software engineering system. It turns high-level prompts into fully tested, production-ready code (or research/infrastructure) using a secure, isolated Docker environment.
+> **Autonomous AI Software Engineering System**
 
-## 🧠 Deep Dive: How It Works & Logic
+[![Tests](https://img.shields.io/badge/tests-46%20passing-brightgreen)]()
+[![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)]()
+[![Docker](https://img.shields.io/badge/container-Docker-2496ED)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-This section details the internal state machine and agentic loops. **Read this to understand the system's brain.**
+Factory transforms high-level prompts into fully tested, production-ready code using a secure, isolated Docker environment. Zero human intervention required.
 
-### 1. State Management (`prd.json`)
-The core source of truth is the `prd.json` file in the project root. It persists across sessions.
-*   **Structure:** Contains Project Metadata (Tech Stack) and a list of **User Stories**.
-*   **Status Flow:** Each User Story transitions: `pending` -> `implementation` -> `verification` -> `completed`.
-*   **Resume Logic:** When the Factory starts without a prompt, it reads `prd.json` and finds the first non-completed task to resume work.
+## ✨ Features
 
-### 2. Phase 1: The Planning Loop
-Before any code is written, the system must agree on a plan.
-*   **Input:** User Prompt + Existing Project State (File structure, existing `prd.json`).
-*   **Architect Agent:**
-    *   Analyzes the request.
-    *   Generates or Updates `prd.json`.
-    *   **Crucial Rule:** Breaks large features into *atomic* tasks (e.g., "Setup Init", "Add Handler", "Add Middleware", "Add Frontend Component"). Small tasks = higher success rate.
-*   **Critic Agent:**
-    *   Reads the proposed `prd.json`.
-    *   Checks for: Logical gaps, dangerous operations, non-atomic tasks, missing acceptance criteria.
-    *   **Feedback:** If issues found, returns specific critique.
-*   **Loop:** *Architect -> Critic -> Architect* repeats (up to `PLANNING_CYCLES`) until the Critic returns `NO_CRITICAL_ISSUES`.
-
-### 3. Phase 2: The Execution Loop
-The system iterates through the `prd.json` tasks sequentially.
-
-#### A. The Worker (Ralph)
-The "Hands" of the system.
-*   **Role:** Solves the current Task ID.
-*   **Self-Provisioning:** The Docker container runs as `root`. The Worker determines what tools are needed and installs them.
-    *   *Need Go?* `apt install golang`
-    *   *Need React?* `npm install -g create-react-app`
-    *   *Need to debug network?* `apt install curl net-tools`
-*   **TDD Workflow:**
-    1.  **Analyze:** Reads the Task Description and Acceptance Criteria.
-    2.  **Test:** Writes a reproduction script or unit test that *fails* (Red).
-    3.  **Implement:** Writes the implementation code.
-    4.  **Verify:** Runs the test until it *passes* (Green).
-*   **Internal Loop:** The Worker runs in its own "Ralph Loop" (up to `RALPH_ITERATIONS`), trying different solutions if tests fail.
-
-#### B. The Verifier
-The "Quality Assurance" Gate.
-*   **Role:** Independent validation of the Worker's output.
-*   **Action:**
-    *   Reads the Task Criteria.
-    *   Executes the tests created by the Worker (or creates its own verification steps).
-    *   Checks file existence, syntax validity, and logical correctness.
-*   **Decision:**
-    *   **PASS:** Updates `prd.json` task status to `completed`.
-    *   **FAIL:** Returns detailed feedback to the Worker. The Worker then restarts its loop with this feedback injected.
+- **Universal Stack Support** — Go, Python, Rust, Node.js, and any other tech stack
+- **Self-Provisioning** — Automatically installs dependencies inside Docker
+- **TDD Workflow** — Write tests first, then implement
+- **Safe Execution** — All operations isolated in Docker containers
+- **Atomic Tasks** — Small, testable, reversible units of work
+- **Self-Healing** — Automatic retry loops with feedback incorporation
 
 ---
 
-## 🛠️ Installation & Setup
+## 📋 Prerequisites
 
-### 1. Build or Pull Image
-The factory runs in a container.
+- **Docker** — [Install Docker](https://docs.docker.com/get-docker/)
+- **Git** — For cloning the repository
+- **OpenCode API key** — Configure in `~/.config/opencode/`
+
+---
+
+## 🚀 Quick Start
+
 ```bash
-# Pull from registry (if available)
-docker pull wbe7/factory:latest
-
-# OR Build locally
-cd gemini/factory
-docker build -t wbe7/factory:latest .
-```
-
-### 2. Configure Authentication
-The factory uses **OpenCode** configuration.
-```bash
-# Ensure you have your keys (OpenAI/Anthropic) in your local config
-mkdir -p ~/.config/opencode
-# The wrapper automatically mounts this directory!
-```
-
-### 3. Install Wrapper (Recommended)
-This script allows you to run `factory` from any directory.
-```bash
+# 1. Clone the repository and install wrapper
+git clone https://github.com/wbe7/factory.git
+cd factory
 chmod +x factory_wrapper.sh
 sudo ln -s $(pwd)/factory_wrapper.sh /usr/local/bin/factory
+
+# 2. Run Factory from any project directory
+mkdir ~/my-app && cd ~/my-app
+factory "Create a REST API in Go with health endpoint"
+```
+
+> **Note:** The wrapper handles Docker volume mounts automatically. See [Docker section](#-docker) for manual `docker run` usage.
+
+---
+
+## 🧠 How It Works
+
+Factory operates in two phases, orchestrated by `factory.ts`:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    PLANNING LOOP                        │
+│  ┌──────────┐    ┌────────┐    ┌──────────┐             │
+│  │ Architect│───▶│prd.json│◀───│  Critic  │             │
+│  └──────────┘    └────────┘    └──────────┘             │
+│       │              │              │                   │
+│       └──────────────┼──────────────┘                   │
+│                      ▼                                  │
+│               NO_CRITICAL_ISSUES?                       │
+└─────────────────────────────────────────────────────────┘
+                       │ Yes
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│                   EXECUTION LOOP                        │
+│  ┌────────┐    ┌─────────────┐    ┌──────────┐          │
+│  │prd.json│───▶│   Worker    │───▶│ Verifier │          │
+│  │ (task) │    │(Native Loop)│    │          │          │
+│  └────────┘    └─────────────┘    └──────────┘          │
+│                      │                │                 │
+│                      ▼                ▼                 │
+│              VERIFICATION_PASSED? ────▶ Next Task       │
+│                      │ No                               │
+│                      ▼                                  │
+│              Inject Feedback, Retry                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Agent Roles
+
+| Agent | Phase | Responsibility |
+|-------|-------|----------------|
+| **Architect** | Planning | Create/update `prd.json` with atomic user stories |
+| **Critic** | Planning | Validate plan: atomicity, coverage, testability |
+| **Worker** | Execution | Implement task using TDD workflow (native loop) |
+| **Verifier** | Execution | Independent QA validation |
+
+### State Management (`prd.json`)
+
+The `prd.json` file is the source of truth:
+
+```json
+{
+  "project": {
+    "name": "my-app",
+    "tech_stack": ["Go", "PostgreSQL"],
+    "test_command": "go test ./..."
+  },
+  "user_stories": [
+    {
+      "id": "US-001",
+      "title": "Setup project structure",
+      "status": "completed",
+      "passes": true
+    }
+  ]
+}
 ```
 
 ---
 
 ## 🚦 Usage Scenarios
 
-The Factory automatically detects the state of the directory to choose the right strategy.
+Factory auto-detects the project state:
 
-### Scenario 1: New Project (Greenfield)
-**State:** Empty Directory.
-**Action:** Architect creates new `prd.json`. Worker implements from scratch.
-
+### 1. New Project (Greenfield)
 ```bash
 mkdir my-app && cd my-app
 factory "Create a Tic-Tac-Toe game in Python"
 ```
 
-### Scenario 2: Continue Work (Update)
-**State:** Existing `prd.json`.
-**Action:** Architect *appends* to `prd.json`. Critic checks integration. Worker executes new tasks.
-
+### 2. Update Existing Project
 ```bash
 cd my-app
 factory "Add a high score board that saves to JSON"
 ```
 
-### Scenario 3: Brownfield Project
-**State:** Existing Files, NO `prd.json`.
-**Action:** Architect analyzes files, reverse-engineers a `prd.json` state, and plans the new request.
-
+### 3. Brownfield (Legacy Code)
 ```bash
 cd legacy-api
 factory "Refactor /auth route to use JWT"
 ```
 
-### Scenario 4: Resume Interrupted Session
-**State:** `prd.json` has `pending` tasks.
-**Action:** Resumes immediately from the first pending task.
-
+### 4. Resume Interrupted Session
 ```bash
 cd my-app
-factory
-# (No arguments = Resume mode)
+factory  # No arguments = resume from last pending task
 ```
 
 ---
 
-## 🏃 Background Execution
-
-For long-running tasks, use the `-d` (detach) flag. The wrapper handles the Docker arguments for you.
-
-```bash
-# Start in background
-factory -d "Research and document top 5 vector databases"
-
-# Output will be:
-# 🏭 Factory started in background.
-# 📝 Logs: docker logs -f factory-1737389123
-# 🛑 Stop: docker stop factory-1737389123
-```
-
-## 🔧 Configuration
+## ⚙️ Configuration
 
 ### CLI Flags
 
-| Flag | Description |
-|------|-------------|
-| `--model <model>` | LLM model (default: `opencode/glm-4.7-free`) |
-| `--base-url <url>` | Custom LLM endpoint (OpenAI-compatible) |
-| `--planning-cycles <n>` | Max planning iterations (default: 3) |
-| `--verify-cycles <n>` | Max verification iterations (default: 3) |
-| `--worker-iters <n>` | Max worker iterations per task (default: 10) |
-| `--timeout <seconds>` | Global timeout (default: 3600) |
-| `--max-cost <usd>` | Maximum cost limit in USD |
-| `--dry-run` | Output plan without execution |
-| `--mock-llm` | Use mock LLM for testing |
-| `--verbose` | Verbose logging |
-| `--quiet` | Minimal output |
-| `-h, --help` | Show help |
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model <model>` | `opencode/glm-4.7-free` | LLM model |
+| `--base-url <url>` | - | Custom LLM endpoint (OpenAI-compatible) |
+| `--planning-cycles <n>` | `3` | Max planning iterations |
+| `--verify-cycles <n>` | `3` | Max verification iterations |
+| `--worker-iters <n>` | `10` | Max worker iterations per task |
+| `--timeout <seconds>` | `3600` | Global timeout |
+| `--max-cost <usd>` | - | Maximum cost limit |
+| `--dry-run` | - | Output plan without execution |
+| `--verbose` | - | Verbose logging |
+| `--quiet` | - | Minimal output |
+| `-h, --help` | - | Show help |
 
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FACTORY_MODEL` | `opencode/glm-4.7-free` | LLM model to use |
-| `FACTORY_TIMEOUT` | `3600` | Global timeout in seconds |
+| `FACTORY_MODEL` | `opencode/glm-4.7-free` | LLM model |
+| `FACTORY_TIMEOUT` | `3600` | Global timeout (seconds) |
 | `FACTORY_PLANNING_CYCLES` | `3` | Max planning iterations |
 | `FACTORY_VERIFICATION_CYCLES` | `3` | Max verification iterations |
 | `FACTORY_WORKER_ITERATIONS` | `10` | Max worker iterations |
-| `FACTORY_MAX_COST` | - | Maximum cost limit in USD |
+| `FACTORY_MAX_COST` | - | Maximum cost limit (USD) |
 | `OPENAI_BASE_URL` | - | Custom LLM endpoint |
 | `OPENAI_API_KEY` | - | API key for custom endpoint |
 
@@ -189,10 +187,60 @@ export OPENAI_API_KEY="your-key"
 factory --model nemotron-nano-30b "Add authentication"
 ```
 
-### Docker Volume Mapping
+---
 
-By default, the wrapper maps:
-* `$(pwd)` -> `/app/target_project` (Your code)
-* `~/.config/opencode` -> `/root/.config/opencode` (Your auth)
-* `/var/run/docker.sock` -> `/var/run/docker.sock` (Docker-in-Docker)
+## 🐳 Docker
 
+### Build Locally (Multi-Arch)
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t wbe7/factory:latest \
+  --push .
+```
+
+### Volume Mapping
+
+| Host Path | Container Path | Purpose |
+|-----------|----------------|---------|
+| `$(pwd)` | `/app/target_project` | Your project files |
+| `~/.config/opencode` | `/root/.config/opencode` | LLM authentication |
+| `/var/run/docker.sock` | `/var/run/docker.sock` | Docker-in-Docker |
+
+### Install Wrapper Script
+
+```bash
+chmod +x factory_wrapper.sh
+sudo ln -s $(pwd)/factory_wrapper.sh /usr/local/bin/factory
+```
+
+---
+
+## 📚 Documentation
+
+For detailed architecture and development guides:
+
+| Document | Description |
+|----------|-------------|
+| [GEMINI.md](.gemini/GEMINI.md) | Development rules and protocols |
+| [ARCHITECTURE.md](.gemini/docs/ARCHITECTURE.md) | System design and components |
+| [ROADMAP.md](.gemini/docs/ROADMAP.md) | Project phases and status |
+| [Walkthroughs](.gemini/walkthroughs/) | Completed phase documentation |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+bun test
+
+# Expected output
+# 46 pass, 0 fail
+```
+
+---
+
+## 📄 License
+
+MIT © 2024
