@@ -180,7 +180,7 @@ async function main(): Promise<void> {
 
         if (!planApproved) {
             console.error('⛔ Failed to approve plan after maximum cycles');
-            process.exit(1);
+            await shutdown(1);
         }
     }
 
@@ -253,7 +253,7 @@ async function main(): Promise<void> {
             task.status = 'failed';
             await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
             console.error('⛔ Task failed verification limit. Stopping factory.');
-            process.exit(1);
+            await shutdown(1);
         }
     }
 }
