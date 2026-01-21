@@ -27,7 +27,6 @@ type-check: lint
 build:
 	bun build factory.ts --outdir=dist --target=bun
 
-# Clean build artifacts
+# Clean build artifacts (does not remove log files as path is configurable)
 clean:
 	rm -rf dist
-	rm -f factory.log

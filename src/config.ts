@@ -4,6 +4,28 @@ import { DEFAULT_CONFIG } from './types';
 const VALID_LOG_LEVELS = new Set<LogLevel>(['debug', 'info', 'warn', 'error']);
 
 /**
+ * Parse and validate a positive integer from string.
+ */
+function parsePositiveInt(value: string, flag: string): number {
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        throw new Error(`Invalid --${flag} value: "${value}". Must be a positive integer.`);
+    }
+    return parsed;
+}
+
+/**
+ * Parse and validate a positive float from string.
+ */
+function parsePositiveFloat(value: string, flag: string): number {
+    const parsed = parseFloat(value);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        throw new Error(`Invalid --${flag} value: "${value}". Must be a positive number.`);
+    }
+    return parsed;
+}
+
+/**
  * Parse CLI arguments from process.argv.
  * Returns ONLY explicitly provided arguments (Partial) to allow proper layering.
  * Supports --flag=value and --flag value formats.
@@ -31,46 +53,21 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
                 case 'base-url':
                     config.baseUrl = value;
                     break;
-                case 'planning-cycles': {
-                    const parsed = parseInt(value, 10);
-                    if (Number.isNaN(parsed) || parsed <= 0) {
-                        throw new Error(`Invalid --planning-cycles value: "${value}". Must be a positive integer.`);
-                    }
-                    config.planningCycles = parsed;
+                case 'planning-cycles':
+                    config.planningCycles = parsePositiveInt(value, 'planning-cycles');
                     break;
-                }
-                case 'verify-cycles': {
-                    const parsed = parseInt(value, 10);
-                    if (Number.isNaN(parsed) || parsed <= 0) {
-                        throw new Error(`Invalid --verify-cycles value: "${value}". Must be a positive integer.`);
-                    }
-                    config.verificationCycles = parsed;
+                case 'verify-cycles':
+                    config.verificationCycles = parsePositiveInt(value, 'verify-cycles');
                     break;
-                }
-                case 'worker-iters': {
-                    const parsed = parseInt(value, 10);
-                    if (Number.isNaN(parsed) || parsed <= 0) {
-                        throw new Error(`Invalid --worker-iters value: "${value}". Must be a positive integer.`);
-                    }
-                    config.workerIterations = parsed;
+                case 'worker-iters':
+                    config.workerIterations = parsePositiveInt(value, 'worker-iters');
                     break;
-                }
-                case 'timeout': {
-                    const parsed = parseInt(value, 10);
-                    if (Number.isNaN(parsed) || parsed <= 0) {
-                        throw new Error(`Invalid --timeout value: "${value}". Must be a positive integer.`);
-                    }
-                    config.timeout = parsed;
+                case 'timeout':
+                    config.timeout = parsePositiveInt(value, 'timeout');
                     break;
-                }
-                case 'max-cost': {
-                    const parsed = parseFloat(value);
-                    if (Number.isNaN(parsed) || parsed <= 0) {
-                        throw new Error(`Invalid --max-cost value: "${value}". Must be a positive number.`);
-                    }
-                    config.maxCost = parsed;
+                case 'max-cost':
+                    config.maxCost = parsePositiveFloat(value, 'max-cost');
                     break;
-                }
                 case 'log-file':
                     config.logFile = value;
                     break;

@@ -96,7 +96,7 @@ async function runAgent(
     let prompt = readFileSync(promptFile, 'utf-8');
 
     for (const [key, value] of Object.entries(contextReplacements)) {
-        prompt = prompt.replace(key, value);
+        prompt = prompt.replaceAll(key, value);
     }
 
     logger.debug(`Running agent: ${promptFile}`, { cwd });
