@@ -1,5 +1,7 @@
-import type { FactoryConfig } from './types';
+import type { FactoryConfig, LogLevel } from './types';
 import { DEFAULT_CONFIG } from './types';
+
+const VALID_LOG_LEVELS = new Set<LogLevel>(['debug', 'info', 'warn', 'error']);
 
 /**
  * Parse CLI arguments from process.argv.
@@ -19,7 +21,7 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
             process.exit(0);
         }
 
-        if (arg.startsWith('--')) {
+        if (arg && arg.startsWith('--')) {
             const [key, value] = parseFlag(arg, args[i + 1]);
 
             switch (key) {
@@ -29,21 +31,57 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
                 case 'base-url':
                     config.baseUrl = value;
                     break;
-                case 'planning-cycles':
-                    config.planningCycles = parseInt(value, 10);
+                case 'planning-cycles': {
+                    const parsed = parseInt(value, 10);
+                    if (Number.isNaN(parsed) || parsed <= 0) {
+                        throw new Error(`Invalid --planning-cycles value: "${value}". Must be a positive integer.`);
+                    }
+                    config.planningCycles = parsed;
                     break;
-                case 'verify-cycles':
-                    config.verificationCycles = parseInt(value, 10);
+                }
+                case 'verify-cycles': {
+                    const parsed = parseInt(value, 10);
+                    if (Number.isNaN(parsed) || parsed <= 0) {
+                        throw new Error(`Invalid --verify-cycles value: "${value}". Must be a positive integer.`);
+                    }
+                    config.verificationCycles = parsed;
                     break;
-                case 'worker-iters':
-                    config.workerIterations = parseInt(value, 10);
+                }
+                case 'worker-iters': {
+                    const parsed = parseInt(value, 10);
+                    if (Number.isNaN(parsed) || parsed <= 0) {
+                        throw new Error(`Invalid --worker-iters value: "${value}". Must be a positive integer.`);
+                    }
+                    config.workerIterations = parsed;
                     break;
-                case 'timeout':
-                    config.timeout = parseInt(value, 10);
+                }
+                case 'timeout': {
+                    const parsed = parseInt(value, 10);
+                    if (Number.isNaN(parsed) || parsed <= 0) {
+                        throw new Error(`Invalid --timeout value: "${value}". Must be a positive integer.`);
+                    }
+                    config.timeout = parsed;
                     break;
-                case 'max-cost':
-                    config.maxCost = parseFloat(value);
+                }
+                case 'max-cost': {
+                    const parsed = parseFloat(value);
+                    if (Number.isNaN(parsed) || parsed <= 0) {
+                        throw new Error(`Invalid --max-cost value: "${value}". Must be a positive number.`);
+                    }
+                    config.maxCost = parsed;
                     break;
+                }
+                case 'log-file':
+                    config.logFile = value;
+                    break;
+                case 'log-level': {
+                    const level = value.toLowerCase() as LogLevel;
+                    if (!VALID_LOG_LEVELS.has(level)) {
+                        throw new Error(`Invalid --log-level value: "${value}". Must be one of: debug, info, warn, error.`);
+                    }
+                    config.logLevel = level;
+                    break;
+                }
                 case 'dry-run':
                     config.dryRun = true;
                     break;
@@ -62,7 +100,7 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
             if (!arg.includes('=') && value && !BOOLEAN_FLAGS.has(key)) {
                 i++;
             }
-        } else if (!arg.startsWith('-')) {
+        } else if (arg && !arg.startsWith('-')) {
             // Positional argument = goal
             config.goal = arg;
         }
@@ -78,7 +116,7 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
  */
 function parseFlag(arg: string, nextArg?: string): [string, string] {
     if (arg.includes('=')) {
-        const [key, ...rest] = arg.slice(2).split('=');
+        const [key = '', ...rest] = arg.slice(2).split('=');
         return [key, rest.join('=')];
     }
     return [arg.slice(2), nextArg || ''];
@@ -99,6 +137,13 @@ export function parseEnvConfig(): Partial<FactoryConfig> {
     if (env.FACTORY_WORKER_ITERATIONS) config.workerIterations = parseInt(env.FACTORY_WORKER_ITERATIONS, 10);
     if (env.FACTORY_TIMEOUT) config.timeout = parseInt(env.FACTORY_TIMEOUT, 10);
     if (env.FACTORY_MAX_COST) config.maxCost = parseFloat(env.FACTORY_MAX_COST);
+    if (env.FACTORY_LOG_FILE) config.logFile = env.FACTORY_LOG_FILE;
+    if (env.FACTORY_LOG_LEVEL) {
+        const level = env.FACTORY_LOG_LEVEL.toLowerCase() as LogLevel;
+        if (VALID_LOG_LEVELS.has(level)) {
+            config.logLevel = level;
+        }
+    }
 
     return config;
 }
@@ -132,6 +177,8 @@ Options:
   --worker-iters <n>        Max worker iterations per task (default: 10)
   --timeout <seconds>       Global timeout (default: 3600)
   --max-cost <usd>          Maximum cost limit in USD
+  --log-file <path>         Enable file logging (JSON Lines format)
+  --log-level <level>       Log level: debug, info, warn, error (default: info)
   --dry-run                 Output plan without execution
   --mock-llm                Use mock LLM for testing
   --verbose                 Verbose logging
@@ -141,11 +188,14 @@ Options:
 Examples:
   factory "Create a REST API in Go"
   factory --model gpt-4 --timeout 1800 "Add authentication"
+  factory --log-level debug "Debug task"
   factory --dry-run "Complex task"
 
 Environment Variables:
   FACTORY_MODEL             Default model
   FACTORY_TIMEOUT           Default timeout
+  FACTORY_LOG_FILE          Log file path (enables file logging)
+  FACTORY_LOG_LEVEL         Log level (debug, info, warn, error)
   OPENAI_BASE_URL           Custom LLM endpoint
   OPENAI_API_KEY            API key for custom endpoint
 `);

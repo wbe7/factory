@@ -1,3 +1,5 @@
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
 export interface FactoryConfig {
     goal: string | null;
     model: string;
@@ -11,6 +13,8 @@ export interface FactoryConfig {
     mockLlm: boolean;
     verbose: boolean;
     quiet: boolean;
+    logFile: string | null;   // null = stdout only (default)
+    logLevel: LogLevel;
 }
 
 export interface PrdProject {
@@ -19,9 +23,9 @@ export interface PrdProject {
     tech_stack: string[];
     test_command: string;
     quality_gate?: {
-        lint_command: string | null;
-        type_check: string | null;
-        security_scan: string | null;
+        lint_command?: string | null;
+        type_check?: string | null;
+        security_scan?: string | null;
     };
 }
 
@@ -57,4 +61,6 @@ export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
     mockLlm: false,
     verbose: false,
     quiet: false,
+    logFile: null,      // No file logging by default (Docker-friendly)
+    logLevel: 'info',
 };

@@ -1,0 +1,33 @@
+.PHONY: test lint type-check build clean help
+
+# Default target
+help:
+	@echo "Factory - Autonomous AI Software Engineering System"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  make test        - Run all tests"
+	@echo "  make lint        - Run TypeScript type checking"
+	@echo "  make type-check  - Run TypeScript type checking (alias)"
+	@echo "  make build       - Build production bundle"
+	@echo "  make clean       - Clean build artifacts"
+	@echo "  make help        - Show this help"
+
+# Run all tests
+test:
+	bun test
+
+# Run TypeScript type checking (Bun doesn't have a built-in linter, using tsc for type checking)
+lint:
+	bunx tsc --noEmit --skipLibCheck
+
+# Alias for lint
+type-check: lint
+
+# Build production bundle
+build:
+	bun build factory.ts --outdir=dist --target=bun
+
+# Clean build artifacts
+clean:
+	rm -rf dist
+	rm -f factory.log

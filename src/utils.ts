@@ -27,7 +27,7 @@ export async function createBackup(path: string): Promise<void> {
  */
 export function extractJson(text: string): string {
     const match = text.match(/```json\n([\s\S]*?)\n```/);
-    return match ? match[1] : text;
+    return match?.[1] ?? text;
 }
 
 /**

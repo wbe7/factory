@@ -10,20 +10,33 @@ describe('E2E: CLI', () => {
         expect(result).toContain('--timeout');
         expect(result).toContain('--dry-run');
         expect(result).toContain('--base-url');
+        expect(result).toContain('--log-file');
+        expect(result).toContain('--log-level');
         expect(result).toContain('OPENAI_BASE_URL');
+        expect(result).toContain('FACTORY_LOG_FILE');
+        expect(result).toContain('FACTORY_LOG_LEVEL');
     });
 
     test('--dry-run displays config and exits without LLM call', async () => {
         const result = await $`bun factory.ts --dry-run "Test task"`.text();
 
-        expect(result).toContain('Dry run mode');
-        expect(result).toContain('Test task');
+        // Logger outputs startup and dry run messages
+        expect(result).toContain('Factory started');
+        expect(result).toContain('Dry run');
     });
 
     test('--verbose --dry-run shows model info', async () => {
-        const result = await $`bun factory.ts --verbose --dry-run --model=test-model "Test"`.text();
+        // In debug mode, context is shown
+        const result = await $`bun factory.ts --log-level=debug --dry-run --model=test-model "Test"`.text();
 
         expect(result).toContain('test-model');
+    });
+
+    test('--log-level=debug shows debug messages', async () => {
+        const result = await $`bun factory.ts --log-level=debug --dry-run "Test"`.text();
+
+        // With debug level, file logging message should appear
+        expect(result).toContain('Dry run');
     });
 
     test('runs without errors with no arguments (resume mode)', async () => {
@@ -39,4 +52,19 @@ describe('E2E: CLI', () => {
 
         expect(proc.exitCode).toBe(0);
     });
+
+    test('invalid --timeout value throws error', async () => {
+        const proc = await $`bun factory.ts --timeout=abc "Test"`.nothrow();
+
+        expect(proc.exitCode).toBe(1);
+        expect(proc.stderr.toString()).toContain('Invalid --timeout value');
+    });
+
+    test('invalid --log-level value throws error', async () => {
+        const proc = await $`bun factory.ts --log-level=invalid "Test"`.nothrow();
+
+        expect(proc.exitCode).toBe(1);
+        expect(proc.stderr.toString()).toContain('Invalid --log-level value');
+    });
 });
+

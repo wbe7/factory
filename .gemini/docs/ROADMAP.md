@@ -105,22 +105,25 @@
 
 ### Phase 2: Logging & Observability 🔲
 
-**Goal:** Structured JSON logging for debugging and analytics.
+**Goal:** Structured logging for debugging, analytics, and improved planning phase visibility.
 
 **Deliverables:**
 - [ ] Create `Logger` class with levels (debug, info, warn, error)
-- [ ] Log to both console and `factory.log` file
+- [ ] **Default: stdout** (Docker-friendly, `docker logs` compatible)
+- [ ] **Opt-in file logging** via `--log-file <path>` flag
+- [ ] Add `--log-level` flag (default: info)
+- [ ] Add `FACTORY_LOG_FILE` and `FACTORY_LOG_LEVEL` env vars
 - [ ] Add timing metrics (phase duration, agent call duration)
 - [ ] Log token usage (if available from opencode)
 - [ ] Emit structured events for worker iterations (iteration start/end, success/failure)
-- [ ] Add `--log-file` and `--log-level` flags
+- [ ] **Enhanced planning phase visibility** (Architect/Critic progress logging)
 - [ ] Add Zod validation for LLM responses (deferred from Phase 1)
 - [ ] Add parseInt/parseFloat input validation (deferred from Phase 1)
 - [ ] Add task status transitions (implementation/verification) (deferred from Phase 1)
 
 **Verification:**
-- Verify `factory.log` is created and contains valid JSON
-- Verify log rotation doesn't crash on large files
+- Verify structured logs appear in stdout
+- Verify `--log-file` creates JSON Lines file when specified
 
 ---
 

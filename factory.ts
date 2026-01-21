@@ -6,9 +6,11 @@
 import { existsSync, readFileSync } from 'fs';
 import { $ } from 'bun';
 
-import { parseArgs, parseEnvConfig, mergeConfig, printHelp } from './src/config';
+import { parseArgs, parseEnvConfig, mergeConfig } from './src/config';
 import { workerLoop, runOpencode } from './src/worker';
 import { atomicWrite, createBackup, extractJson } from './src/utils';
+import { createLogger, Logger } from './src/logger';
+import { parsePrd, formatPrdErrors } from './src/schemas';
 import type { FactoryConfig, Prd, PrdTask } from './src/types';
 
 // Constants
@@ -19,6 +21,7 @@ const PROMPTS_DIR = 'prompts';
 // Global state for graceful shutdown
 let shuttingDown = false;
 let currentPrd: Prd | null = null;
+let globalLogger: Logger | null = null;
 
 /**
  * Gracefully shut down the factory, saving state.
@@ -28,16 +31,33 @@ async function shutdown(exitCode = 0): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
 
-    console.log('\n🛑 Graceful shutdown...');
+    if (globalLogger) {
+        globalLogger.info('Graceful shutdown initiated');
+    } else {
+        console.log('\n🛑 Graceful shutdown...');
+    }
 
     if (currentPrd) {
         try {
             await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
-            console.log('💾 State saved to prd.json');
+            if (globalLogger) {
+                globalLogger.info('State saved to prd.json');
+            } else {
+                console.log('💾 State saved to prd.json');
+            }
         } catch (error) {
-            console.error('❌ Failed to save state:', error);
+            const msg = error instanceof Error ? error.message : String(error);
+            if (globalLogger) {
+                globalLogger.error('Failed to save state', { error: msg });
+            } else {
+                console.error('❌ Failed to save state:', error);
+            }
             process.exit(1);
         }
+    }
+
+    if (globalLogger) {
+        await globalLogger.close();
     }
     process.exit(exitCode);
 }
@@ -53,10 +73,10 @@ function setupSignalHandlers(): void {
 /**
  * Setup global timeout
  */
-function setupTimeout(config: FactoryConfig): void {
+function setupTimeout(config: FactoryConfig, logger: Logger): void {
     if (config.timeout > 0) {
         setTimeout(() => {
-            console.error('⏰ Global timeout reached!');
+            logger.error('Global timeout reached!');
             shutdown(1);
         }, config.timeout * 1000);
     }
@@ -68,7 +88,8 @@ function setupTimeout(config: FactoryConfig): void {
 async function runAgent(
     promptFile: string,
     contextReplacements: Record<string, string>,
-    config: FactoryConfig
+    config: FactoryConfig,
+    logger: Logger
 ): Promise<string> {
     let prompt = readFileSync(promptFile, 'utf-8');
 
@@ -76,9 +97,7 @@ async function runAgent(
         prompt = prompt.replace(key, value);
     }
 
-    if (config.verbose) {
-        console.log(`🤖 Running agent: ${promptFile}`);
-    }
+    logger.debug(`Running agent: ${promptFile}`);
 
     if (config.mockLlm) {
         // Return mock response for testing
@@ -97,38 +116,41 @@ async function main(): Promise<void> {
     const envConfig = parseEnvConfig();
     const config = mergeConfig(cliConfig, envConfig);
 
-    if (!config.quiet) {
-        console.log(`🏭 Factory. Goal: "${config.goal || 'Resume'}"`);
-        if (config.verbose) {
-            console.log(`   Model: ${config.model}`);
-            if (config.baseUrl) console.log(`   Base URL: ${config.baseUrl}`);
-            console.log(`   Timeout: ${config.timeout}s`);
-        }
+    // Initialize logger
+    const logger = createLogger(config);
+    globalLogger = logger;
+
+    logger.info(`Factory started`, { goal: config.goal || 'Resume', model: config.model });
+    if (config.logFile) {
+        logger.debug(`File logging enabled`, { logFile: config.logFile });
     }
 
     // Setup handlers
     setupSignalHandlers();
-    setupTimeout(config);
+    setupTimeout(config, logger);
 
     // Ensure project directory exists
     if (!existsSync(PROJECT_DIR)) {
+        logger.debug('Creating project directory');
         await $`mkdir -p ${PROJECT_DIR}`;
         await $`cd ${PROJECT_DIR} && git init`;
     }
 
     // --- DRY RUN MODE ---
     if (config.dryRun) {
-        console.log('🔍 Dry run mode - would execute with:', {
+        logger.info('Dry run mode - would execute with:', {
             model: config.model,
             goal: config.goal,
             planningCycles: config.planningCycles,
             verificationCycles: config.verificationCycles,
         });
+        await logger.close();
         process.exit(0);
     }
 
     // --- PHASE 1: PLANNING ---
     if (config.goal) {
+        const planningTimer = logger.timer('Planning phase');
         let prdContent = existsSync(PRD_FILE) ? readFileSync(PRD_FILE, 'utf-8') : '{}';
         const mode = existsSync(PRD_FILE) ? 'UPDATE_PROJECT' : 'NEW_PROJECT';
 
@@ -138,67 +160,98 @@ async function main(): Promise<void> {
 
         while (!planApproved && attempt < config.planningCycles) {
             attempt++;
-            if (!config.quiet) {
-                console.log(`\n📐 Planning Cycle ${attempt}/${config.planningCycles}`);
-            }
+            logger.info(`📐 Planning Cycle ${attempt}/${config.planningCycles}`);
 
             // 1. Architect
+            const architectTimer = logger.timer('Architect agent');
+            logger.info('   🏗️  Architect: analyzing goal...');
+
             const architectOutput = await runAgent(`${PROMPTS_DIR}/architect.md`, {
                 '{{GOAL}}': config.goal + (criticFeedback ? `\n\nCRITIC FEEDBACK: ${criticFeedback}` : ''),
                 '{{CURRENT_PRD}}': prdContent,
                 '{{MODE}}': mode,
-            }, config);
+            }, config, logger);
+
+            const architectDuration = architectTimer();
 
             const jsonDraft = extractJson(architectOutput);
-            try {
-                JSON.parse(jsonDraft); // Validate
-                prdContent = jsonDraft;
-                await createBackup(PRD_FILE);
-                await atomicWrite(PRD_FILE, jsonDraft);
-                currentPrd = JSON.parse(jsonDraft) as Prd; // Update for graceful shutdown
-            } catch (e) {
-                console.error('❌ Invalid JSON from Architect. Retrying...');
-                if (config.verbose && e instanceof Error) {
-                    console.error(`   Parse Error: ${e.message}`);
-                }
+
+            // Use Zod validation instead of raw JSON.parse
+            const validatedPrd = parsePrd(jsonDraft);
+            if (!validatedPrd) {
+                logger.error('Invalid JSON from Architect. Retrying...', {
+                    duration: architectDuration,
+                });
                 continue;
             }
 
+            logger.info(`   🏗️  Architect: generated prd.json`, { duration: architectDuration });
+
+            prdContent = jsonDraft;
+            await createBackup(PRD_FILE);
+            await atomicWrite(PRD_FILE, jsonDraft);
+            currentPrd = validatedPrd;
+
             // 2. Critic
+            const criticTimer = logger.timer('Critic agent');
+            logger.info('   🔍 Critic: validating plan...');
+
             const critique = await runAgent(`${PROMPTS_DIR}/critic.md`, {
                 '{{PRD_CONTENT}}': prdContent,
-            }, config);
+            }, config, logger);
+
+            const criticDuration = criticTimer();
 
             if (critique.includes('NO_CRITICAL_ISSUES')) {
-                if (!config.quiet) console.log('✅ Plan Approved!');
+                logger.info('✅ Plan Approved!', { duration: criticDuration });
                 planApproved = true;
             } else {
-                if (!config.quiet) console.log('⚠️ Critic found issues. Refining...');
+                const issueCount = (critique.match(/\d+\.\s+/g) || []).length || 'some';
+                logger.info(`   🔍 Critic: found ${issueCount} issues. Refining...`, {
+                    duration: criticDuration
+                });
                 criticFeedback = critique;
             }
         }
 
+        planningTimer();
+
         if (!planApproved) {
-            console.error('⛔ Failed to approve plan after maximum cycles');
+            logger.error('Failed to approve plan after maximum cycles');
             await shutdown(1);
         }
     }
 
     // --- PHASE 2: EXECUTION ---
-    if (!config.quiet) console.log('\n🔨 Execution Phase');
+    logger.info('🔨 Execution Phase');
 
     while (true) {
         if (!existsSync(PRD_FILE)) break;
 
-        currentPrd = JSON.parse(readFileSync(PRD_FILE, 'utf-8')) as Prd;
+        const prdContent = readFileSync(PRD_FILE, 'utf-8');
+        const validatedPrd = parsePrd(prdContent);
+
+        if (!validatedPrd) {
+            logger.error('Invalid prd.json format', {
+                errors: formatPrdErrors({ success: false, error: { issues: [] } } as any)
+            });
+            await shutdown(1);
+            return;
+        }
+
+        currentPrd = validatedPrd;
         const task = currentPrd.user_stories.find((t: PrdTask) => !t.passes);
 
         if (!task) {
-            if (!config.quiet) console.log('🎉 All tasks completed!');
+            logger.info('🎉 All tasks completed!');
             break;
         }
 
-        if (!config.quiet) console.log(`\n👉 Task #${task.id}: ${task.title}`);
+        logger.info(`👉 Task #${task.id}: ${task.title}`);
+
+        // Set task status to implementation
+        task.status = 'implementation';
+        await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
 
         let taskVerified = false;
         let verifyAttempt = 0;
@@ -207,8 +260,8 @@ async function main(): Promise<void> {
         while (!taskVerified && verifyAttempt < config.verificationCycles) {
             verifyAttempt++;
 
-            // 1. Worker Loop (Native - replaces Ralph)
-            if (!config.quiet) console.log(`   👷 Worker Loop (Attempt ${verifyAttempt})...`);
+            // 1. Worker Loop
+            logger.info(`   👷 Worker Loop (Attempt ${verifyAttempt}/${config.verificationCycles})...`);
 
             let taskDesc = task.description;
             if (verifierFeedback) {
@@ -221,22 +274,38 @@ async function main(): Promise<void> {
                 .replace('{{TASK_DESCRIPTION}}', taskDesc)
                 .replace('{{TASK_CRITERIA}}', JSON.stringify(task.acceptance_criteria));
 
-            // Run worker in the project directory without changing the global CWD
-            const completed = await workerLoop(workerPrompt, config, runOpencode, PROJECT_DIR);
-            if (!completed && config.verbose) {
-                console.log('   ⚠️ Worker did not complete task within iterations');
+            // Run worker with new signature
+            const workerResult = await workerLoop(workerPrompt, {
+                config,
+                runner: runOpencode,
+                cwd: PROJECT_DIR,
+                logger,
+            });
+
+            if (!workerResult.completed) {
+                logger.warn('Worker did not complete task within iterations', {
+                    iterations: workerResult.iterations,
+                    duration: workerResult.totalDuration,
+                });
             }
 
             // 2. Verifier
-            if (!config.quiet) console.log('   🕵️ Verifier checking...');
+            task.status = 'verification';
+            await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
+
+            logger.info('   🕵️ Verifier checking...');
+            const verifyTimer = logger.timer('Verifier agent');
+
             const verifyResult = await runAgent(`${PROMPTS_DIR}/verifier.md`, {
                 '{{TASK_ID}}': task.id,
                 '{{TASK_TITLE}}': task.title,
                 '{{TASK_CRITERIA}}': JSON.stringify(task.acceptance_criteria),
-            }, config);
+            }, config, logger);
+
+            const verifyDuration = verifyTimer();
 
             if (verifyResult.includes('VERIFICATION_PASSED')) {
-                if (!config.quiet) console.log('   ✅ Verification Passed!');
+                logger.info('   ✅ Verification Passed!', { duration: verifyDuration });
                 taskVerified = true;
                 task.passes = true;
                 task.status = 'completed';
@@ -244,7 +313,7 @@ async function main(): Promise<void> {
                 await createBackup(PRD_FILE);
                 await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
             } else {
-                if (!config.quiet) console.log('   ❌ Verification Failed.');
+                logger.warn('   ❌ Verification Failed.', { duration: verifyDuration });
                 verifierFeedback = verifyResult;
             }
         }
@@ -252,14 +321,23 @@ async function main(): Promise<void> {
         if (!taskVerified) {
             task.status = 'failed';
             await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
-            console.error('⛔ Task failed verification limit. Stopping factory.');
+            logger.error('Task failed verification limit. Stopping factory.', { taskId: task.id });
             await shutdown(1);
         }
     }
+
+    await logger.close();
 }
 
 // Run
 main().catch(async (error) => {
-    console.error('💥 Fatal error:', error);
+    const msg = error instanceof Error ? error.message : String(error);
+    if (globalLogger) {
+        globalLogger.error('Fatal error', { error: msg });
+        await globalLogger.close();
+    } else {
+        console.error('💥 Fatal error:', error);
+    }
     await shutdown(1);
 });
+
