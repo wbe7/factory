@@ -2,7 +2,7 @@
  * Zod schemas for LLM response validation.
  * Provides type-safe parsing of prd.json and agent responses.
  */
-import { z, type ZodIssue } from 'zod';
+import { z } from 'zod';
 
 // Task status enum with fallback
 const StatusValues = ['pending', 'implementation', 'verification', 'completed', 'failed'] as const;
@@ -104,7 +104,7 @@ export function validatePrd(data: unknown): SafeParseResult {
  */
 export function formatPrdErrors(result: SafeParseResult): string[] {
     if (result.success) return [];
-    return result.error.issues.map((issue: ZodIssue) =>
+    return result.error.issues.map((issue) =>
         `${issue.path.join('.')}: ${issue.message}`
     );
 }
