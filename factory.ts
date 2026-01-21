@@ -259,7 +259,7 @@ async function main(): Promise<void> {
 }
 
 // Run
-main().catch((error) => {
+main().catch(async (error) => {
     console.error('💥 Fatal error:', error);
-    process.exit(1);
+    await shutdown(1);
 });
