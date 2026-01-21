@@ -241,7 +241,15 @@ async function main(): Promise<void> {
         }
 
         currentPrd = validatedPrd;
-        const task = currentPrd.user_stories.find((t: PrdTask) => !t.passes);
+
+        // Select first pending task whose dependencies are all completed
+        const completedTaskIds = new Set(
+            currentPrd.user_stories.filter(t => t.passes).map(t => t.id)
+        );
+        const task = currentPrd.user_stories.find(
+            (t: PrdTask) =>
+                !t.passes && t.dependencies.every(depId => completedTaskIds.has(depId))
+        );
 
         if (!task) {
             logger.info('🎉 All tasks completed!');
