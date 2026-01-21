@@ -57,7 +57,7 @@ describe('E2E: CLI', () => {
         const proc = await $`bun factory.ts --timeout=abc "Test"`.nothrow();
 
         expect(proc.exitCode).toBe(1);
-        expect(proc.stderr.toString()).toContain('Invalid --timeout value');
+        expect(proc.stderr.toString()).toContain('Invalid value for --timeout');
     });
 
     test('invalid --log-level value throws error', async () => {

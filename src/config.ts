@@ -5,22 +5,24 @@ const VALID_LOG_LEVELS = new Set<LogLevel>(['debug', 'info', 'warn', 'error']);
 
 /**
  * Parse and validate a positive integer from string.
+ * @param name - Description of the value (e.g., '--planning-cycles' or 'FACTORY_PLANNING_CYCLES')
  */
-function parsePositiveInt(value: string, flag: string): number {
+function parsePositiveInt(value: string, name: string): number {
     const parsed = parseInt(value, 10);
     if (Number.isNaN(parsed) || parsed <= 0) {
-        throw new Error(`Invalid --${flag} value: "${value}". Must be a positive integer.`);
+        throw new Error(`Invalid value for ${name}: "${value}". Must be a positive integer.`);
     }
     return parsed;
 }
 
 /**
  * Parse and validate a positive float from string.
+ * @param name - Description of the value (e.g., '--max-cost' or 'FACTORY_MAX_COST')
  */
-function parsePositiveFloat(value: string, flag: string): number {
+function parsePositiveFloat(value: string, name: string): number {
     const parsed = parseFloat(value);
     if (Number.isNaN(parsed) || parsed <= 0) {
-        throw new Error(`Invalid --${flag} value: "${value}". Must be a positive number.`);
+        throw new Error(`Invalid value for ${name}: "${value}". Must be a positive number.`);
     }
     return parsed;
 }
@@ -54,19 +56,19 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
                     config.baseUrl = value;
                     break;
                 case 'planning-cycles':
-                    config.planningCycles = parsePositiveInt(value, 'planning-cycles');
+                    config.planningCycles = parsePositiveInt(value, '--planning-cycles');
                     break;
                 case 'verify-cycles':
-                    config.verificationCycles = parsePositiveInt(value, 'verify-cycles');
+                    config.verificationCycles = parsePositiveInt(value, '--verify-cycles');
                     break;
                 case 'worker-iters':
-                    config.workerIterations = parsePositiveInt(value, 'worker-iters');
+                    config.workerIterations = parsePositiveInt(value, '--worker-iters');
                     break;
                 case 'timeout':
-                    config.timeout = parsePositiveInt(value, 'timeout');
+                    config.timeout = parsePositiveInt(value, '--timeout');
                     break;
                 case 'max-cost':
-                    config.maxCost = parsePositiveFloat(value, 'max-cost');
+                    config.maxCost = parsePositiveFloat(value, '--max-cost');
                     break;
                 case 'log-file':
                     config.logFile = value;

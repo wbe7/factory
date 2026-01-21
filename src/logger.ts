@@ -124,6 +124,13 @@ export class Logger {
                 console.error(`Failed to write to log file: ${err.message}`);
             });
             this.pendingWrites.push(writePromise);
+            // Remove the promise from array once settled to prevent memory leaks
+            writePromise.finally(() => {
+                const index = this.pendingWrites.indexOf(writePromise);
+                if (index > -1) {
+                    this.pendingWrites.splice(index, 1);
+                }
+            });
         }
     }
 

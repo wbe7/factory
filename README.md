@@ -247,4 +247,4 @@ bun test
 
 ## 📄 License
 
-MIT © 2024
+MIT © 2026
