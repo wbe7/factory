@@ -1,5 +1,5 @@
 {
-  "name": "facrory",
+  "name": "factory",
   "private": true,
   "devDependencies": {
     "@types/bun": "latest"

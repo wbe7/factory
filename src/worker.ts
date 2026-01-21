@@ -1,6 +1,7 @@
 import type { FactoryConfig } from './types';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { unlink } from 'fs/promises';
 
 /**
  * Type for opencode runner function (allows mocking in tests)
@@ -46,7 +47,6 @@ export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: s
     } finally {
         // Cleanup temp file
         try {
-            const { unlink } = await import('fs/promises');
             await unlink(tmpPromptFile);
         } catch {
             // Ignore cleanup errors
