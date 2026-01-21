@@ -1,90 +1,67 @@
-# Phase 1: CLI Refactoring & Core Loop Rewrite
-
-**Status:** ✅ Completed  
-**Branch:** `feature/phase-1-cli-refactoring`  
-**PR:** [#1](https://github.com/wbe7/factory/pull/1)  
-**Date:** 2026-01-21
-
----
+# Phase 1 Walkthrough: CLI Refactoring & Core Loop Rewrite
 
 ## Summary
 
-This phase refactored Factory to be configurable via CLI/env and replaced the external `ralph-wiggum` dependency with a native worker loop implementation.
+**PR #1 merged!** Phase 1 delivered complete CLI refactoring and native worker loop implementation.
 
-## Changes Made
+## Key Deliverables
 
-### New Files
+| Deliverable | Status |
+|-------------|--------|
+| Native CLI parsing (process.argv) | ✅ |
+| Environment variable support | ✅ |
+| Native worker loop (replaced ralph-wiggum) | ✅ |
+| Modular source structure (`src/`) | ✅ |
+| Test suite (46 tests) | ✅ |
+| Graceful shutdown with state saving | ✅ |
+| Atomic file writes with backups | ✅ |
 
-| File | Purpose |
-|------|---------|
-| `src/types.ts` | TypeScript interfaces: `FactoryConfig`, `Prd`, `PrdTask` |
-| `src/config.ts` | CLI parsing, env config, help output |
-| `src/utils.ts` | Atomic writes, backup, JSON extraction |
-| `src/worker.ts` | Native worker loop replacing ralph |
-| `tests/config.test.ts` | 16 CLI parsing tests |
-| `tests/worker-loop.test.ts` | 6 worker loop tests |
-| `tests/utils.test.ts` | 11 utility tests |
-| `tests/e2e/cli.test.ts` | 5 E2E CLI tests |
-| `.env.example` | Environment variables template |
-| `opencode.config.json` | Non-interactive mode for Docker |
+## Code Changes
 
-### Modified Files
+- **20 files changed**, +1222/-108 lines
+- New modules: `src/config.ts`, `src/types.ts`, `src/utils.ts`, `src/worker.ts`
+- Tests: `tests/config.test.ts`, `tests/worker-loop.test.ts`, `tests/utils.test.ts`, `tests/e2e/cli.test.ts`
 
-| File | Changes |
-|------|---------|
-| `factory.ts` | Complete refactor using src/ modules (247 LOC) |
-| `Dockerfile` | Removed ralph, added src/, opencode config |
-| `README.md` | Added Configuration section with all flags/env |
-| `.gemini/docs/ARCHITECTURE.md` | Added Docker Build section |
-| `.gitignore` | Added .env, factory.log, etc |
+## Gemini Review Loop
+
+**9 rounds**, **20 findings addressed**:
+
+| Round | Findings | Fixed/Deferred |
+|-------|----------|----------------|
+| 1 | 3 | 3 fixed (workerLoop type, currentPrd update, security ack) |
+| 2 | 5 | 5 fixed (parseArgs Partial, mergeConfig, UUID, unlink, verbose) |
+| 3 | 2 | 2 fixed (cwd param, BOOLEAN_FLAGS Set) |
+| 4 | 2 | 2 fixed (shutdown exit code, os.tmpdir) |
+| 5 | 1 | 1 fixed (timeout graceful shutdown) |
+| 6 | 4 | 1 fixed + 3 deferred (zod, task status, parseInt) |
+| 7 | 2 | 2 fixed (package name typo, static import) |
+| 8 | 2 | 1 fixed + 1 deferred (bun.lock, parseInt) |
+| 9 | 3 | 3 fixed (shutdown on all exit paths) |
+
+**Deferred to Phase 2:**
+- Zod schema validation for LLM responses
+- Task status transitions (implementation/verification)
+- parseInt/parseFloat input validation
 
 ## Test Results
 
 ```
-43 pass
-0 fail
-66 expect() calls
-Ran 43 tests across 4 files. [372.00ms]
+46 pass, 0 fail
+74 expect() calls
+Ran 46 tests across 4 files
 ```
 
-## CLI Features
+## Configuration Options
 
+### CLI Flags
 ```bash
-# Help
-bun factory.ts --help
-
-# Dry run
-bun factory.ts --dry-run "Create API"
-
-# Custom model
-bun factory.ts --model gpt-4 "Add auth"
-
-# Self-hosted LLM
-OPENAI_BASE_URL=http://localhost:8000/v1 bun factory.ts "Task"
-
-# Verbose mode
-bun factory.ts --verbose "Debug task"
+factory --model=gpt-4 --timeout=3600 --dry-run "Create API"
 ```
 
-## Deliverables Checklist
+### Environment Variables
+```bash
+FACTORY_MODEL, FACTORY_TIMEOUT, OPENAI_BASE_URL, OPENAI_API_KEY
+```
 
-- [x] CLI argument parsing (native Bun)
-- [x] Environment variable support (8 vars)
-- [x] Add flags: --model, --timeout, --base-url, etc.
-- [x] Remove hardcoded "v3"
-- [x] Create .env.example
-- [x] Implement native workerLoop()
-- [x] Remove ralph-wiggum from Dockerfile
-- [x] Atomic writes (temp + rename)
-- [x] Backup prd.json.bak
-- [x] Graceful shutdown (SIGTERM/SIGINT)
-- [x] Global timeout
-- [x] Configure opencode non-interactive
-- [x] Add --mock-llm flag
-- [x] Setup bun test infrastructure
-- [x] Update README
-- [x] Document self-hosted models
-
-## Next Steps
-
-Ready for Phase 2: Logging & Observability
+## PR Link
+[https://github.com/wbe7/factory/pull/1](https://github.com/wbe7/factory/pull/1)
