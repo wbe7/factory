@@ -5,6 +5,7 @@ import {
     PrdProjectSchema,
     TaskStatusSchema,
     parsePrd,
+    parsePrdWithErrors,
     validatePrd,
     formatPrdErrors,
     type Prd,
@@ -21,10 +22,10 @@ describe('Zod Schemas', () => {
             expect(TaskStatusSchema.parse('failed')).toBe('failed');
         });
 
-        test('rejects invalid status', () => {
-            expect(() => TaskStatusSchema.parse('invalid')).toThrow();
-            expect(() => TaskStatusSchema.parse('')).toThrow();
-            expect(() => TaskStatusSchema.parse(null)).toThrow();
+        test('invalid status falls back to pending (tolerant)', () => {
+            // With .catch('pending'), invalid values return 'pending' instead of throwing
+            expect(TaskStatusSchema.parse('invalid')).toBe('pending');
+            expect(TaskStatusSchema.parse('')).toBe('pending');
         });
     });
 
@@ -96,8 +97,9 @@ describe('Zod Schemas', () => {
             expect(result.metrics?.tokens_used).toBe(1000);
         });
 
-        test('rejects invalid status', () => {
-            expect(() => PrdTaskSchema.parse({ ...validTask, status: 'unknown' })).toThrow();
+        test('invalid status falls back to pending (tolerant)', () => {
+            const result = PrdTaskSchema.parse({ ...validTask, status: 'unknown' });
+            expect(result.status).toBe('pending'); // Fallback instead of throw
         });
     });
 

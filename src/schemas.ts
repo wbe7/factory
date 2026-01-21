@@ -4,14 +4,9 @@
  */
 import { z } from 'zod';
 
-// Task status enum
-export const TaskStatusSchema = z.enum([
-    'pending',
-    'implementation',
-    'verification',
-    'completed',
-    'failed'
-]);
+// Task status enum with fallback
+const StatusValues = ['pending', 'implementation', 'verification', 'completed', 'failed'] as const;
+export const TaskStatusSchema = z.enum(StatusValues).catch('pending');
 
 // PRD Project schema
 export const PrdProjectSchema = z.object({
@@ -33,15 +28,15 @@ export const TaskMetricsSchema = z.object({
     duration_seconds: z.number(),
 });
 
-// PRD Task schema
+// PRD Task schema - with defaults for common LLM mistakes
 export const PrdTaskSchema = z.object({
     id: z.string(),
     title: z.string(),
     description: z.string(),
-    acceptance_criteria: z.array(z.string()),
-    dependencies: z.array(z.string()),
-    status: TaskStatusSchema,
-    passes: z.boolean(),
+    acceptance_criteria: z.array(z.string()).default([]),
+    dependencies: z.array(z.string()).default([]),
+    status: TaskStatusSchema.default('pending'),
+    passes: z.boolean().default(false),
     metrics: TaskMetricsSchema.optional(),
 });
 
@@ -74,6 +69,25 @@ export function parsePrd(json: string): Prd | null {
         return null;
     } catch {
         return null;
+    }
+}
+
+/**
+ * Parse JSON string with detailed error reporting.
+ * Returns [Prd, null] on success, [null, errors] on failure.
+ */
+export function parsePrdWithErrors(json: string): [Prd | null, string[]] {
+    try {
+        const data = JSON.parse(json);
+        const result = PrdSchema.safeParse(data);
+        if (result.success) {
+            return [result.data, []];
+        }
+        const errors = formatPrdErrors(result);
+        return [null, errors];
+    } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return [null, [`JSON parse error: ${msg}`]];
     }
 }
 

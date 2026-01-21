@@ -10,7 +10,7 @@ import { parseArgs, parseEnvConfig, mergeConfig } from './src/config';
 import { workerLoop, runOpencode } from './src/worker';
 import { atomicWrite, createBackup, extractJson } from './src/utils';
 import { createLogger, Logger } from './src/logger';
-import { parsePrd, formatPrdErrors } from './src/schemas';
+import { parsePrdWithErrors, formatPrdErrors } from './src/schemas';
 import type { FactoryConfig, Prd, PrdTask } from './src/types';
 
 // Constants
@@ -84,12 +84,14 @@ function setupTimeout(config: FactoryConfig, logger: Logger): void {
 
 /**
  * Run an agent with the given prompt file and context replacements
+ * @param cwd - Working directory for the agent (should be PROJECT_DIR)
  */
 async function runAgent(
     promptFile: string,
     contextReplacements: Record<string, string>,
     config: FactoryConfig,
-    logger: Logger
+    logger: Logger,
+    cwd?: string
 ): Promise<string> {
     let prompt = readFileSync(promptFile, 'utf-8');
 
@@ -97,14 +99,14 @@ async function runAgent(
         prompt = prompt.replace(key, value);
     }
 
-    logger.debug(`Running agent: ${promptFile}`);
+    logger.debug(`Running agent: ${promptFile}`, { cwd });
 
     if (config.mockLlm) {
         // Return mock response for testing
         return 'MOCK_RESPONSE';
     }
 
-    return await runOpencode(prompt, config);
+    return await runOpencode(prompt, config, cwd);
 }
 
 /**
@@ -170,17 +172,18 @@ async function main(): Promise<void> {
                 '{{GOAL}}': config.goal + (criticFeedback ? `\n\nCRITIC FEEDBACK: ${criticFeedback}` : ''),
                 '{{CURRENT_PRD}}': prdContent,
                 '{{MODE}}': mode,
-            }, config, logger);
+            }, config, logger, PROJECT_DIR);
 
             const architectDuration = architectTimer();
 
             const jsonDraft = extractJson(architectOutput);
 
-            // Use Zod validation instead of raw JSON.parse
-            const validatedPrd = parsePrd(jsonDraft);
+            // Use Zod validation with detailed error reporting
+            const [validatedPrd, validationErrors] = parsePrdWithErrors(jsonDraft);
             if (!validatedPrd) {
                 logger.error('Invalid JSON from Architect. Retrying...', {
                     duration: architectDuration,
+                    errors: validationErrors.slice(0, 5), // Show first 5 errors
                 });
                 continue;
             }
@@ -198,7 +201,7 @@ async function main(): Promise<void> {
 
             const critique = await runAgent(`${PROMPTS_DIR}/critic.md`, {
                 '{{PRD_CONTENT}}': prdContent,
-            }, config, logger);
+            }, config, logger, PROJECT_DIR);
 
             const criticDuration = criticTimer();
 
@@ -229,12 +232,10 @@ async function main(): Promise<void> {
         if (!existsSync(PRD_FILE)) break;
 
         const prdContent = readFileSync(PRD_FILE, 'utf-8');
-        const validatedPrd = parsePrd(prdContent);
+        const [validatedPrd, prdErrors] = parsePrdWithErrors(prdContent);
 
         if (!validatedPrd) {
-            logger.error('Invalid prd.json format', {
-                errors: formatPrdErrors({ success: false, error: { issues: [] } } as any)
-            });
+            logger.error('Invalid prd.json format', { errors: prdErrors });
             await shutdown(1);
             return;
         }
@@ -300,7 +301,7 @@ async function main(): Promise<void> {
                 '{{TASK_ID}}': task.id,
                 '{{TASK_TITLE}}': task.title,
                 '{{TASK_CRITERIA}}': JSON.stringify(task.acceptance_criteria),
-            }, config, logger);
+            }, config, logger, PROJECT_DIR);
 
             const verifyDuration = verifyTimer();
 
