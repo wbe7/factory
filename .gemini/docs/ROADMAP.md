@@ -5,7 +5,7 @@
 | Phase | Name | Status | Branch |
 |-------|------|--------|--------|
 | 0 | Bootstrap & Current State | ✅ Completed | `main` |
-| 1 | CLI Refactoring & Core Loop Rewrite | 🔲 Planned | - |
+| 1 | CLI Refactoring & Core Loop Rewrite | ✅ Completed | `feature/phase-1-cli-refactoring` |
 | 2 | Logging & Observability | 🔲 Planned | - |
 | 3 | Project Context Enhancement | 🔲 Planned | - |
 | 4 | Git Worktree Isolation | 🔲 Planned | - |
@@ -17,7 +17,7 @@
 | 10 | Cost Tracking & Analytics | 🔲 Planned | - |
 | 11 | Live Integration Testing | 🔲 Planned | - |
 
-**Current Focus:** Phase 1 - CLI Refactoring & Core Loop Rewrite
+**Current Focus:** Phase 2 - Logging & Observability
 
 ---
 
@@ -46,15 +46,15 @@
 
 ---
 
-### Phase 1: CLI Refactoring & Core Loop Rewrite 🔲
+### Phase 1: CLI Refactoring & Core Loop Rewrite ✅
 
 **Goal:** Make Factory configurable, remove external dependencies, implement native execution loop with production-grade safety.
 
 **Deliverables:**
 
 *CLI & Configuration:*
-- [ ] Add CLI argument parsing (native Bun `process.argv`)
-- [ ] Environment variable support for:
+- [x] Add CLI argument parsing (native Bun `process.argv`)
+- [x] Environment variable support for:
   - `FACTORY_MODEL` (default: `opencode/glm-4.7-free`)
   - `FACTORY_PLANNING_CYCLES` (default: 3)
   - `FACTORY_VERIFICATION_CYCLES` (default: 3)
@@ -63,35 +63,35 @@
   - `FACTORY_MAX_COST` (default: unlimited)
   - `OPENAI_BASE_URL` (custom LLM endpoint for self-hosted models)
   - `OPENAI_API_KEY` (API key for custom endpoint)
-- [ ] Add flags: `--model`, `--planning-cycles`, `--verify-cycles`, `--worker-iters`
-- [ ] Add flags: `--timeout`, `--max-cost` (rate limiting)
-- [ ] Add flags: `--base-url` (override LLM endpoint for local/self-hosted models)
-- [ ] Add flags: `--verbose` / `--quiet`, `--dry-run`
-- [ ] Remove hardcoded "v3" from output
-- [ ] Create `.env.example` with all env vars documented
+- [x] Add flags: `--model`, `--planning-cycles`, `--verify-cycles`, `--worker-iters`
+- [x] Add flags: `--timeout`, `--max-cost` (rate limiting)
+- [x] Add flags: `--base-url` (override LLM endpoint for local/self-hosted models)
+- [x] Add flags: `--verbose` / `--quiet`, `--dry-run`
+- [x] Remove hardcoded "v3" from output
+- [x] Create `.env.example` with all env vars documented
 
 *Remove Ralph Dependency:*
-- [ ] Implement native `workerLoop()` function (~30 lines)
-- [ ] Remove `ralph-wiggum` from Dockerfile and dependencies
-- [ ] Loop logic: call `opencode run` until `<promise>COMPLETE</promise>` found
-- [ ] Add iteration counter and timeout handling
-- [ ] Emit structured events for each iteration (prep for Phase 2 logging)
+- [x] Implement native `workerLoop()` function (~30 lines)
+- [x] Remove `ralph-wiggum` from Dockerfile and dependencies
+- [x] Loop logic: call `opencode run` until `<promise>COMPLETE</promise>` found
+- [x] Add iteration counter and timeout handling
+- [ ] Emit structured events for each iteration (prep for Phase 2 logging) → **Deferred to Phase 2**
 
 *Safety & Reliability:*
-- [ ] **Atomic writes**: Write to `prd.json.tmp`, then rename (prevents corruption)
-- [ ] **Backup**: Copy `prd.json` to `prd.json.bak` before each modification
-- [ ] **Graceful shutdown**: Handle `SIGTERM`/`SIGINT`, save state, cleanup
-- [ ] **Global timeout**: `setTimeout` to kill process after `--timeout` seconds
-- [ ] Configure opencode for non-interactive mode (auto-accept permissions)
+- [x] **Atomic writes**: Write to `prd.json.tmp`, then rename (prevents corruption)
+- [x] **Backup**: Copy `prd.json` to `prd.json.bak` before each modification
+- [x] **Graceful shutdown**: Handle `SIGTERM`/`SIGINT`, save state, cleanup
+- [x] **Global timeout**: `setTimeout` to kill process after `--timeout` seconds
+- [x] Configure opencode for non-interactive mode (auto-accept permissions)
 
 *Testing Infrastructure:*
-- [ ] Add `--mock-llm` flag for testing without real API calls
-- [ ] Create mock responses fixture for unit tests
-- [ ] Setup basic test structure with `bun test`
+- [x] Add `--mock-llm` flag for testing without real API calls
+- [x] Create mock responses fixture for unit tests
+- [x] Setup basic test structure with `bun test`
 
 *Documentation:*
-- [ ] Update README with new configuration options
-- [ ] Document self-hosted model configuration
+- [x] Update README with new configuration options
+- [x] Document self-hosted model configuration
 
 **Verification:**
 - Unit tests for argument parsing
