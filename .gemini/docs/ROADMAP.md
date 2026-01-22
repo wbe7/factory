@@ -259,7 +259,40 @@ Logger uses `appendFile()` for each log entry — file handle opened/closed per 
 
 ---
 
-#### 🔴 Problem 5: All 4 Execution Scenarios Must Be Validated
+#### � Problem 7: Planning-Only Mode Not Supported
+
+**Observed:**
+Users want to run only the planning phase (Architect + Critic) without execution, but:
+- `--worker-iters 0` crashes or behaves unexpectedly
+- `--verify-cycles 0` also causes issues
+- No explicit `--plan-only` or `--plan` flag exists
+
+**Use Cases:**
+- Review generated `prd.json` before committing to execution
+- Iterate on prompts without burning API credits on Worker/Verifier
+- CI integration: generate plan for human review
+
+**Solution:**
+
+```
+[ ] 1. Add --plan Flag
+    - Skip execution phase entirely
+    - Similar to --dry-run but actually runs Architect/Critic
+    - Output: prd.json with status=pending for all tasks
+
+[ ] 2. Fix Edge Cases
+    - --worker-iters 0 should be valid (skip worker loop)
+    - --verify-cycles 0 should be valid (skip verification)
+    - Validate at startup, not during execution
+
+[ ] 3. Add Explicit Logging
+    - Log: "Planning-only mode: skipping execution phase"
+    - Log: "Run 'factory' without --plan to execute tasks"
+```
+
+---
+
+#### �🔴 Problem 5: All 4 Execution Scenarios Must Be Validated
 
 **Context:**
 Factory supports 4 distinct execution scenarios. Each must be tested to ensure reliable operation.
@@ -418,6 +451,7 @@ FACTORY_MODEL=gemini-3-pro-preview FACTORY_LOG_LEVEL=debug factory --dry-run "te
 - [ ] BROWNFIELD: Architect correctly analyzes existing project structure  
 - [ ] RESUME: Skips planning, continues from pending tasks
 - [ ] ENV vars: All FACTORY_* and GOOGLE_API_KEY propagate correctly
+- [ ] `--plan` flag: Runs planning only, creates prd.json with pending tasks
 - [ ] No "Invalid JSON" errors when LLM uses Write tool
 - [ ] All 82+ tests pass
 - [ ] Zero type duplication warnings
