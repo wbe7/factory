@@ -32,8 +32,18 @@ docker run $DETACH_MODE $DOCKER_INTERACTIVE --rm \
   -v "$(pwd)":/app/target_project \
   -v "$HOME/.config/opencode":/root/.config/opencode \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  -e OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+  -e OPENAI_BASE_URL="${OPENAI_BASE_URL:-}" \
+  -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
+  -e GOOGLE_API_KEY="${GOOGLE_API_KEY:-}" \
+  -e FACTORY_MODEL="${FACTORY_MODEL:-}" \
+  -e FACTORY_TIMEOUT="${FACTORY_TIMEOUT:-}" \
+  -e FACTORY_PLANNING_CYCLES="${FACTORY_PLANNING_CYCLES:-}" \
+  -e FACTORY_VERIFICATION_CYCLES="${FACTORY_VERIFICATION_CYCLES:-}" \
+  -e FACTORY_WORKER_ITERATIONS="${FACTORY_WORKER_ITERATIONS:-}" \
+  -e FACTORY_MAX_COST="${FACTORY_MAX_COST:-}" \
+  -e FACTORY_LOG_FILE="${FACTORY_LOG_FILE:-}" \
+  -e FACTORY_LOG_LEVEL="${FACTORY_LOG_LEVEL:-}" \
   $IMAGE_NAME "$@"
 
 # If detached, inform the user

@@ -372,64 +372,45 @@ bun test tests/e2e/scenarios.test.ts  # All 4 scenarios with mocks
 export GOOGLE_API_KEY="your-vertex-ai-key"
 cat ~/.config/opencode/config.json  # Verify provider=google
 
-# 1. Build Docker image
-docker buildx build --platform linux/amd64 -t wbe7/factory:phase2.5-test .
+# Install wrapper (one-time)
+cp factory_wrapper.sh /usr/local/bin/factory && chmod +x /usr/local/bin/factory
+
+# 1. Build Docker image (or use existing wbe7/factory:latest)
+docker buildx build --platform linux/amd64 -t wbe7/factory:latest .
 
 # 2. Test NEW_PROJECT scenario
 rm -rf /tmp/factory-test-new && mkdir -p /tmp/factory-test-new
-docker run --rm \
-  -v "/tmp/factory-test-new":/app/target_project \
-  -v "$HOME/.config/opencode":/root/.config/opencode \
-  -e GOOGLE_API_KEY \
-  wbe7/factory:phase2.5-test \
-  --planning-cycles 5 \
-  --log-level debug \
-  "Create a Go CLI that prints hello world with tests"
+cd /tmp/factory-test-new
+factory --planning-cycles 5 --log-level debug "Create a Go CLI that prints hello world with tests"
 # Expected: prd.json created, tasks executed
 # Success: valid JSON in ≤3 cycles
 
 # 3. Test UPDATE_PROJECT scenario
-docker run --rm \
-  -v "/tmp/factory-test-new":/app/target_project \
-  -v "$HOME/.config/opencode":/root/.config/opencode \
-  -e GOOGLE_API_KEY \
-  wbe7/factory:phase2.5-test \
-  --planning-cycles 5 \
-  "Add a --name flag to the CLI"
+cd /tmp/factory-test-new
+factory --planning-cycles 5 "Add a --name flag to the CLI"
 # Expected: Architect sees existing prd.json, adds new task
 
 # 4. Test BROWNFIELD scenario
 rm -rf /tmp/factory-test-brown && mkdir -p /tmp/factory-test-brown
-cd /tmp/factory-test-brown && go mod init example.com/test && cd -
-docker run --rm \
-  -v "/tmp/factory-test-brown":/app/target_project \
-  -v "$HOME/.config/opencode":/root/.config/opencode \
-  -e GOOGLE_API_KEY \
-  wbe7/factory:phase2.5-test \
-  --planning-cycles 5 \
-  "Add a main.go that prints the current time"
+cd /tmp/factory-test-brown && go mod init example.com/test
+factory --planning-cycles 5 "Add a main.go that prints the current time"
 # Expected: Architect analyzes go.mod, creates appropriate plan
 
 # 5. Test RESUME scenario
 # (First, interrupt a running factory with Ctrl+C during execution)
 # Then run without prompt:
-docker run --rm \
-  -v "/tmp/factory-test-new":/app/target_project \
-  -v "$HOME/.config/opencode":/root/.config/opencode \
-  -e GOOGLE_API_KEY \
-  wbe7/factory:phase2.5-test
+cd /tmp/factory-test-new
+factory
 # Expected: Skips planning, continues from pending tasks
 
 # 6. Test ENV var propagation
-docker run --rm \
-  -v "/tmp/factory-test-env":/app/target_project \
-  -e FACTORY_MODEL=gemini-3-pro-preview \
-  -e FACTORY_LOG_LEVEL=debug \
-  wbe7/factory:phase2.5-test \
-  --dry-run \
-  "test"
+rm -rf /tmp/factory-test-env && mkdir -p /tmp/factory-test-env
+cd /tmp/factory-test-env
+FACTORY_MODEL=gemini-3-pro-preview FACTORY_LOG_LEVEL=debug factory --dry-run "test"
 # Expected: Logs show model=gemini-3-pro-preview, level=debug
 ```
+
+> **Note:** The `factory` wrapper (`factory_wrapper.sh`) automatically handles volume mounts for `$(pwd)`, `~/.config/opencode`, and passes `GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` to the container.
 
 **Success Criteria:**
 - [ ] NEW_PROJECT: Valid JSON in ≤5 cycles
