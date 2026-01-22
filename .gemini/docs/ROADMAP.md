@@ -259,6 +259,94 @@ Logger uses `appendFile()` for each log entry — file handle opened/closed per 
 
 ---
 
+#### 🔴 Problem 5: All 4 Execution Scenarios Must Be Validated
+
+**Context:**
+Factory supports 4 distinct execution scenarios. Each must be tested to ensure reliable operation.
+
+| Scenario | Detection | Expected Behavior |
+|----------|-----------|-------------------|
+| **NEW_PROJECT** | Empty dir, no `prd.json` | Architect creates full plan from scratch |
+| **UPDATE_PROJECT** | Existing `prd.json` with completed tasks | Architect appends/modifies tasks |
+| **BROWNFIELD** | Files exist but no `prd.json` | Architect analyzes existing code, creates plan |
+| **RESUME** | `prd.json` with pending tasks | Skip planning, continue execution |
+
+**Solution (Deliverables):**
+
+```
+[ ] 1. E2E Tests for Each Scenario
+    - tests/e2e/scenarios.test.ts with mock LLM responses
+    - Assert correct phase detection and flow
+
+[ ] 2. Manual Test Script
+    - scripts/test-scenarios.sh with all 4 scenarios
+    - Uses real LLM (Gemini Flash for cost efficiency)
+    - Creates temp directories for isolation
+
+[ ] 3. Scenario Detection Logging
+    - Log detected scenario at INFO level on startup
+    - Log: "Detected scenario: NEW_PROJECT"
+```
+
+---
+
+#### 🔴 Problem 6: API Key Propagation to Container
+
+**Observed:**
+Users confused about where to put API keys for Factory to use inside Docker container.
+
+**Current Flow:**
+1. Host: `~/.config/opencode/config.json` with provider/model/api_key
+2. Docker: `docker run -v $HOME/.config/opencode:/root/.config/opencode ...`
+3. Container: `opencode` reads config from `/root/.config/opencode/config.json`
+
+**For Vertex AI (Google):**
+```json
+// ~/.config/opencode/config.json
+{
+  "provider": "google",
+  "model": "gemini-3-flash-preview",
+  "non_interactive": true
+}
+```
+
+API key via environment:
+```bash
+docker run ... -e GOOGLE_API_KEY="your-key" wbe7/factory ...
+```
+
+**For OpenAI-compatible:**
+```json
+// ~/.config/opencode/config.json
+{
+  "provider": "openai",
+  "model": "gpt-4o",
+  "non_interactive": true
+}
+```
+
+API key via environment:
+```bash
+docker run ... -e OPENAI_API_KEY="sk-..." wbe7/factory ...
+```
+
+**Solution (Deliverables):**
+
+```
+[ ] 1. Document API Key Flow in README
+    - Section: "Configuring LLM Providers"
+    - Examples for Google, OpenAI, OpenRouter, local models
+
+[ ] 2. Startup Validation
+    - Check for required env vars based on provider
+    - Log warning if missing: "GOOGLE_API_KEY not set, LLM calls will fail"
+
+[ ] 3. Add --provider Flag
+    - Allow runtime override: factory --provider google --model gemini-3-flash-preview
+```
+
+---
+
 #### Verification Plan
 
 **Automated Tests:**
@@ -273,42 +361,83 @@ bun test tests/factory.test.ts  # Mock output with tool calls
 # 3. Docker ENV vars
 make docker-test-env  # New Makefile target with docker -e tests
 
-# 4. Full E2E planning cycle
-docker run ... factory --dry-run --verbose-planning "Create hello world"
+# 4. Scenario detection
+bun test tests/e2e/scenarios.test.ts  # All 4 scenarios with mocks
 ```
 
 **Manual Verification (Mac with Docker):**
 
 ```bash
+# 0. Prerequisites
+export GOOGLE_API_KEY="your-vertex-ai-key"
+cat ~/.config/opencode/config.json  # Verify provider=google
+
 # 1. Build Docker image
 docker buildx build --platform linux/amd64 -t wbe7/factory:phase2.5-test .
 
-# 2. Test NEW_PROJECT scenario with Gemini Flash
+# 2. Test NEW_PROJECT scenario
+rm -rf /tmp/factory-test-new && mkdir -p /tmp/factory-test-new
 docker run --rm \
-  -v "$(pwd)/test-project":/app/target_project \
+  -v "/tmp/factory-test-new":/app/target_project \
   -v "$HOME/.config/opencode":/root/.config/opencode \
-  -e GOOGLE_API_KEY="<key>" \
+  -e GOOGLE_API_KEY \
   wbe7/factory:phase2.5-test \
-  --planning-cycles 10 \
-  --verbose \
-  "Create a simple Go hello world with tests"
-
-# Expected: Valid JSON within 1-3 cycles (not 25)
+  --planning-cycles 5 \
+  --log-level debug \
+  "Create a Go CLI that prints hello world with tests"
+# Expected: prd.json created, tasks executed
+# Success: valid JSON in ≤3 cycles
 
 # 3. Test UPDATE_PROJECT scenario
-# (Run again with existing prd.json)
+docker run --rm \
+  -v "/tmp/factory-test-new":/app/target_project \
+  -v "$HOME/.config/opencode":/root/.config/opencode \
+  -e GOOGLE_API_KEY \
+  wbe7/factory:phase2.5-test \
+  --planning-cycles 5 \
+  "Add a --name flag to the CLI"
+# Expected: Architect sees existing prd.json, adds new task
 
 # 4. Test BROWNFIELD scenario
-# (Create existing project files first)
+rm -rf /tmp/factory-test-brown && mkdir -p /tmp/factory-test-brown
+cd /tmp/factory-test-brown && go mod init example.com/test && cd -
+docker run --rm \
+  -v "/tmp/factory-test-brown":/app/target_project \
+  -v "$HOME/.config/opencode":/root/.config/opencode \
+  -e GOOGLE_API_KEY \
+  wbe7/factory:phase2.5-test \
+  --planning-cycles 5 \
+  "Add a main.go that prints the current time"
+# Expected: Architect analyzes go.mod, creates appropriate plan
 
 # 5. Test RESUME scenario
-# (Interrupt and resume with same prd.json)
+# (First, interrupt a running factory with Ctrl+C during execution)
+# Then run without prompt:
+docker run --rm \
+  -v "/tmp/factory-test-new":/app/target_project \
+  -v "$HOME/.config/opencode":/root/.config/opencode \
+  -e GOOGLE_API_KEY \
+  wbe7/factory:phase2.5-test
+# Expected: Skips planning, continues from pending tasks
+
+# 6. Test ENV var propagation
+docker run --rm \
+  -v "/tmp/factory-test-env":/app/target_project \
+  -e FACTORY_MODEL=gemini-3-pro-preview \
+  -e FACTORY_LOG_LEVEL=debug \
+  wbe7/factory:phase2.5-test \
+  --dry-run \
+  "test"
+# Expected: Logs show model=gemini-3-pro-preview, level=debug
 ```
 
 **Success Criteria:**
-- [ ] Planning phase succeeds in ≤5 cycles (avg) for NEW_PROJECT
+- [ ] NEW_PROJECT: Valid JSON in ≤5 cycles
+- [ ] UPDATE_PROJECT: New tasks appended to existing prd.json
+- [ ] BROWNFIELD: Architect correctly analyzes existing project structure  
+- [ ] RESUME: Skips planning, continues from pending tasks
+- [ ] ENV vars: All FACTORY_* and GOOGLE_API_KEY propagate correctly
 - [ ] No "Invalid JSON" errors when LLM uses Write tool
-- [ ] Docker ENV vars work correctly
 - [ ] All 82+ tests pass
 - [ ] Zero type duplication warnings
 
