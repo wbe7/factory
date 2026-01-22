@@ -1,4 +1,5 @@
 import type { FactoryConfig } from './types';
+import type { Logger } from './logger';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlink } from 'fs/promises';
@@ -7,6 +8,25 @@ import { unlink } from 'fs/promises';
  * Type for opencode runner function (allows mocking in tests)
  */
 export type OpencodeRunner = (prompt: string, config: FactoryConfig, cwd?: string) => Promise<string>;
+
+/**
+ * Options for workerLoop function
+ */
+export interface WorkerLoopOptions {
+    config: FactoryConfig;
+    runner?: OpencodeRunner;
+    cwd?: string;
+    logger?: Logger;
+}
+
+/**
+ * Result from workerLoop
+ */
+export interface WorkerLoopResult {
+    completed: boolean;
+    iterations: number;
+    totalDuration: number;
+}
 
 /**
  * Run opencode with the given prompt.
@@ -57,35 +77,89 @@ export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: s
 /**
  * Native worker loop that replaces ralph-wiggum.
  * Calls opencode repeatedly until COMPLETE promise is found or max iterations reached.
- * @param cwd - Optional working directory for opencode execution
  */
 export async function workerLoop(
     prompt: string,
-    config: FactoryConfig,
-    runner: OpencodeRunner = runOpencode as OpencodeRunner,
-    cwd?: string
-): Promise<boolean> {
+    options: WorkerLoopOptions
+): Promise<WorkerLoopResult> {
+    const { config, runner = runOpencode, cwd, logger } = options;
+    const loopStart = performance.now();
+    let iterations = 0;
+
     for (let i = 0; i < config.workerIterations; i++) {
-        if (config.verbose) {
-            console.log(`   👷 Worker iteration ${i + 1}/${config.workerIterations}...`);
+        iterations = i + 1;
+        const iterStart = performance.now();
+
+        // Log iteration start
+        if (logger) {
+            logger.debug(`Worker iteration ${iterations}/${config.workerIterations}`, {
+                iteration: iterations,
+                maxIterations: config.workerIterations,
+            });
+        } else if (config.verbose) {
+            console.log(`   👷 Worker iteration ${iterations}/${config.workerIterations}...`);
         }
 
         try {
             const output = await runner(prompt, config, cwd);
+            const iterDuration = Math.round(performance.now() - iterStart);
+            const hasPromise = output.includes('<promise>COMPLETE</promise>');
 
-            if (output.includes('<promise>COMPLETE</promise>')) {
-                if (config.verbose) {
+            // Log iteration end
+            if (logger) {
+                logger.debug(`Worker iteration ${iterations} completed`, {
+                    iteration: iterations,
+                    success: true,
+                    duration: iterDuration,
+                    hasPromise,
+                });
+            }
+
+            if (hasPromise) {
+                if (logger) {
+                    logger.info('Worker completed task', {
+                        iterations,
+                        duration: Math.round(performance.now() - loopStart),
+                    });
+                } else if (config.verbose) {
                     console.log('   ✅ Worker completed task');
                 }
-                return true;
+                return {
+                    completed: true,
+                    iterations,
+                    totalDuration: Math.round(performance.now() - loopStart),
+                };
             }
         } catch (error) {
-            if (config.verbose) {
-                console.error(`   ❌ Worker iteration ${i + 1} failed:`, error);
+            const iterDuration = Math.round(performance.now() - iterStart);
+
+            // Log iteration failure
+            if (logger) {
+                logger.warn(`Worker iteration ${iterations} failed`, {
+                    iteration: iterations,
+                    duration: iterDuration,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            } else if (config.verbose) {
+                console.error(`   ❌ Worker iteration ${iterations} failed:`, error);
             }
             // Continue to next iteration
         }
     }
 
-    return false; // Max iterations reached without completion
+    // Max iterations reached
+    const totalDuration = Math.round(performance.now() - loopStart);
+    if (logger) {
+        logger.warn('Worker max iterations reached without completion', {
+            iterations,
+            totalDuration,
+        });
+    }
+
+    return {
+        completed: false,
+        iterations,
+        totalDuration,
+    };
 }
+

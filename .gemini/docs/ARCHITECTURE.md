@@ -86,7 +86,11 @@ interface FactoryConfig {
   dryRun: boolean;            // If true, output prd.json without execution
   mockLlm: boolean;           // If true, use mock responses for testing
   verbose: boolean;           // Verbose logging
+  logFile: string | null;     // Opt-in file logging path (null = stdout only)
+  logLevel: LogLevel;         // Log level: debug | info | warn | error
 }
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 ```
 
 **Responsibilities:**

@@ -4,9 +4,10 @@ FROM ubuntu:24.04
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install essential bootstrapping tools
-# We keep this minimal. The Agent will install everything else (Go, Rust, Node, Python, etc.) as needed.
+# Install essential bootstrapping tools and common utilities
+# Pre-installed to avoid runtime downloads by the Agent
 RUN apt-get update && apt-get install -y \
+    # Core tools
     curl \
     wget \
     git \
@@ -16,8 +17,25 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg \
     lsb-release \
+    # Node.js (for npm packages)
     nodejs \
     npm \
+    # Docker CLI (for container management)
+    docker.io \
+    # Network utilities
+    net-tools \
+    iproute2 \
+    dnsutils \
+    iputils-ping \
+    netcat-openbsd \
+    # System utilities
+    procps \
+    htop \
+    jq \
+    make \
+    sudo \
+    vim-tiny \
+    less \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Bun (for running the factory script itself)

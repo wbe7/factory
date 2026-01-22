@@ -154,6 +154,8 @@ factory  # No arguments = resume from last pending task
 | `--worker-iters <n>` | `10` | Max worker iterations per task |
 | `--timeout <seconds>` | `3600` | Global timeout |
 | `--max-cost <usd>` | - | Maximum cost limit |
+| `--log-file <path>` | - | Enable file logging (JSON Lines format) |
+| `--log-level <level>` | `info` | Log level: debug, info, warn, error |
 | `--dry-run` | - | Output plan without execution |
 | `--verbose` | - | Verbose logging |
 | `--quiet` | - | Minimal output |
@@ -169,6 +171,8 @@ factory  # No arguments = resume from last pending task
 | `FACTORY_VERIFICATION_CYCLES` | `3` | Max verification iterations |
 | `FACTORY_WORKER_ITERATIONS` | `10` | Max worker iterations |
 | `FACTORY_MAX_COST` | - | Maximum cost limit (USD) |
+| `FACTORY_LOG_FILE` | - | Enable file logging (JSON Lines) |
+| `FACTORY_LOG_LEVEL` | `info` | Log level (debug/info/warn/error) |
 | `OPENAI_BASE_URL` | - | Custom LLM endpoint |
 | `OPENAI_API_KEY` | - | API key for custom endpoint |
 
@@ -243,4 +247,4 @@ bun test
 
 ## 📄 License
 
-MIT © 2024
+MIT © 2026
