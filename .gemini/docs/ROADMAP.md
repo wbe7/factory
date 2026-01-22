@@ -6,7 +6,8 @@
 |-------|------|--------|--------|
 | 0 | Bootstrap & Current State | ✅ Completed | `main` |
 | 1 | CLI Refactoring & Core Loop Rewrite | ✅ Completed | `feature/phase-1-cli-refactoring` |
-| 2 | Logging & Observability | 🔲 Planned | - |
+| 2 | Logging & Observability | ✅ Completed | `feature/phase-2-logging` |
+| 2.5 | Stability & Debugging | 🔲 Planned | - |
 | 3 | Project Context Enhancement | 🔲 Planned | - |
 | 4 | Git Worktree Isolation | 🔲 Planned | - |
 | 5 | Universal Test Runner & Quality Gate | 🔲 Planned | - |
@@ -17,7 +18,7 @@
 | 10 | Cost Tracking & Analytics | 🔲 Planned | - |
 | 11 | Live Integration Testing | 🔲 Planned | - |
 
-**Current Focus:** Phase 2 - Logging & Observability
+**Current Focus:** Phase 2.5 - Stability & Debugging
 
 ---
 
@@ -103,29 +104,213 @@
 
 ---
 
-### Phase 2: Logging & Observability 🔲
+### Phase 2: Logging & Observability ✅
+
+**Status:** Completed (PR #2 merged)
 
 **Goal:** Structured logging for debugging, analytics, and improved planning phase visibility.
 
-**Deliverables:**
-- [ ] Create `Logger` class with levels (debug, info, warn, error)
-- [ ] **Default: stdout** (Docker-friendly, `docker logs` compatible)
-- [ ] **Opt-in file logging** via `--log-file <path>` flag
-- [ ] Add `--log-level` flag (default: info)
-- [ ] Add `FACTORY_LOG_FILE` and `FACTORY_LOG_LEVEL` env vars
-- [ ] Add timing metrics (phase duration, agent call duration)
-- [ ] Log token usage (if available from opencode)
-- [ ] Emit structured events for worker iterations (iteration start/end, success/failure)
-- [ ] **Enhanced planning phase visibility** (Architect/Critic progress logging)
-- [ ] Add Zod validation for LLM responses (deferred from Phase 1)
-- [ ] Add parseInt/parseFloat input validation (deferred from Phase 1)
-- [ ] Add task status transitions (implementation/verification) (deferred from Phase 1)
+**Deliverables (Completed):**
+- [x] Create `Logger` class with levels (debug, info, warn, error)
+- [x] **Default: stdout** (Docker-friendly, `docker logs` compatible)
+- [x] **Opt-in file logging** via `--log-file <path>` flag
+- [x] Add `--log-level` flag (default: info)
+- [x] Add `FACTORY_LOG_FILE` and `FACTORY_LOG_LEVEL` env vars
+- [x] Add timing metrics (phase duration, agent call duration)
+- [x] Emit structured events for worker iterations (iteration start/end, success/failure)
+- [x] **Enhanced planning phase visibility** (Architect/Critic progress logging)
+- [x] Add Zod validation for `prd.json` with tolerant parsing
+- [x] Add `parseInt`/`parseFloat` input validation helpers
+- [x] Add task status transitions (`pending` → `implementation` → `verification` → `completed`/`failed`)
+- [x] **Task dependency ordering** — execute tasks only when all dependencies are completed
+- [x] All agents run in `target_project` directory (bugfix)
+- [x] Improved prompts for Architect/Critic/Worker/Verifier
 
-**Verification:**
-- Verify structured logs appear in stdout
-- Verify `--log-file` creates JSON Lines file when specified
+**Stats:** 23 files changed, +1,317 lines, 82 tests
+
+**Tech Debt Deferred to Phase 2.5:**
+- Type duplication between `types.ts` and `schemas.ts`
+- Stream-based logging for high-frequency scenarios
 
 ---
+
+### Phase 2.5: Stability & Debugging 🔲
+
+**Goal:** Fix critical stability issues observed in production testing. Ensure Factory reliably handles all 4 execution scenarios with minimal wasted cycles.
+
+---
+
+#### 🔴 Problem 1: Excessive "Invalid JSON from Architect" Errors
+
+**Observed Behavior:**
+In production testing, the Architect agent produced invalid JSON in **25 out of 30 planning cycles** before finally generating valid output. This wastes significant time and API credits.
+
+**Root Causes:**
+
+1. **LLM Uses Tool Calls Instead of Text Response**
+   - Instead of returning raw JSON text, the LLM agent (opencode) may call tools like `|  Write prd.json` or `|  Edit prd.json`.
+   - Our current logic expects the JSON in the agent's text output and uses `extractJson()` to find `\`\`\`json...` blocks.
+   - When LLM writes directly to disk, the text output is empty/contains tool call logs — we mark this as "Invalid JSON".
+
+2. **LLM Returns Markdown Instead of Raw JSON**
+   - The prompt says "Return ONLY the valid JSON" but LLM may still wrap it in markdown or add commentary.
+   - `extractJson()` tries to find `\`\`\`json` block but may fail if format differs.
+
+3. **Schema Strictness**
+   - Even with tolerant Zod parsing, certain structural issues still cause failures.
+   - We now log validation errors but they're not visible without `--log-level debug`.
+
+**Solution (Deliverables):**
+
+```
+[ ] 1. Detect Tool Calls in Output
+    - If output contains "|  Write" or "|  Edit" patterns, LLM wrote to disk directly
+    - In this case, READ from PRD_FILE instead of parsing output
+    - Log: "Architect used file tool, reading from disk"
+
+[ ] 2. Improve extractJson() Robustness
+    - Try multiple extraction strategies in order:
+      a. Extract from ```json...``` block
+      b. Extract from ```...``` block (any language)
+      c. Find JSON object boundaries ({ ... })
+      d. Use raw text as-is
+    - Add unit tests for each strategy
+
+[ ] 3. Enhanced Error Logging
+    - When validation fails, log:
+      - First 300 characters of raw LLM output
+      - Specific Zod validation errors
+      - Whether tool calls were detected
+    - Make this visible at INFO level (not just DEBUG)
+
+[ ] 4. Add --verbose-planning Flag
+    - Shows full Architect/Critic output during planning phase
+    - Useful for debugging prompt issues
+```
+
+---
+
+#### 🔴 Problem 2: Environment Variables Not Working in Container
+
+**Observed Behavior:**
+Environment variables passed via `docker run -e FACTORY_MODEL=...` are not being picked up. Users must use CLI flags instead.
+
+**Root Cause (Hypothesis):**
+- ENV vars may be set AFTER `parseEnvConfig()` is called
+- Or there's a docker/bun subprocess inheritance issue
+
+**Solution (Deliverables):**
+
+```
+[ ] 1. Add E2E Test for Docker ENV Vars
+    - Run: docker run -e FACTORY_MODEL=test-model ... factory --dry-run "test"
+    - Assert: output contains "model: test-model"
+
+[ ] 2. Debug parseEnvConfig() Order
+    - Add debug logging showing all FACTORY_* env vars at startup
+    - Verify Bun.env vs process.env behavior
+
+[ ] 3. Document Correct ENV Var Usage
+    - Update README with explicit docker -e examples
+    - Add troubleshooting section for common issues
+```
+
+---
+
+#### 🟡 Problem 3: Type Duplication
+
+**Observed:**
+Types `PrdProject`, `PrdTask`, `Prd` are defined in BOTH:
+- `src/types.ts` (manual definitions)
+- `src/schemas.ts` (Zod-inferred types)
+
+**Risk:** Definitions can drift out of sync.
+
+**Solution:**
+
+```
+[ ] 1. Remove Manual Types from types.ts
+    - Delete PrdProject, PrdTask, Prd, TaskStatus from types.ts
+    - Keep only FactoryConfig and LogLevel
+
+[ ] 2. Re-export from schemas.ts
+    - Update imports across codebase to use schemas.ts exports
+
+[ ] 3. Verify No Type Errors
+    - Run: bun tsc --noEmit
+```
+
+---
+
+#### 🟡 Problem 4: Logger Performance (Low Priority)
+
+**Observed:**
+Logger uses `appendFile()` for each log entry — file handle opened/closed per write.
+
+**Current Assessment:** Not a bottleneck for typical usage (~1 log/second).
+
+**Solution (Optional):**
+
+```
+[ ] Consider: Use WriteStream in Logger constructor
+    - Open stream once, write many, close in close() method
+    - Only implement if profiling shows issue
+```
+
+---
+
+#### Verification Plan
+
+**Automated Tests:**
+
+```bash
+# 1. JSON extraction strategies
+bun test tests/utils.test.ts  # New tests for extractJson variants
+
+# 2. Tool call detection
+bun test tests/factory.test.ts  # Mock output with tool calls
+
+# 3. Docker ENV vars
+make docker-test-env  # New Makefile target with docker -e tests
+
+# 4. Full E2E planning cycle
+docker run ... factory --dry-run --verbose-planning "Create hello world"
+```
+
+**Manual Verification (Mac with Docker):**
+
+```bash
+# 1. Build Docker image
+docker buildx build --platform linux/amd64 -t wbe7/factory:phase2.5-test .
+
+# 2. Test NEW_PROJECT scenario with Gemini Flash
+docker run --rm \
+  -v "$(pwd)/test-project":/app/target_project \
+  -v "$HOME/.config/opencode":/root/.config/opencode \
+  -e GOOGLE_API_KEY="<key>" \
+  wbe7/factory:phase2.5-test \
+  --planning-cycles 10 \
+  --verbose \
+  "Create a simple Go hello world with tests"
+
+# Expected: Valid JSON within 1-3 cycles (not 25)
+
+# 3. Test UPDATE_PROJECT scenario
+# (Run again with existing prd.json)
+
+# 4. Test BROWNFIELD scenario
+# (Create existing project files first)
+
+# 5. Test RESUME scenario
+# (Interrupt and resume with same prd.json)
+```
+
+**Success Criteria:**
+- [ ] Planning phase succeeds in ≤5 cycles (avg) for NEW_PROJECT
+- [ ] No "Invalid JSON" errors when LLM uses Write tool
+- [ ] Docker ENV vars work correctly
+- [ ] All 82+ tests pass
+- [ ] Zero type duplication warnings
 
 ### Phase 3: Project Context Enhancement 🔲
 
