@@ -5,12 +5,25 @@ const VALID_LOG_LEVELS = new Set<LogLevel>(['debug', 'info', 'warn', 'error']);
 
 /**
  * Parse and validate a positive integer from string.
- * @param name - Description of the value (e.g., '--planning-cycles' or 'FACTORY_PLANNING_CYCLES')
+ * @param name - Description of the value (e.g., '--timeout')
  */
 function parsePositiveInt(value: string, name: string): number {
     const parsed = parseInt(value, 10);
     if (Number.isNaN(parsed) || parsed <= 0) {
         throw new Error(`Invalid value for ${name}: "${value}". Must be a positive integer.`);
+    }
+    return parsed;
+}
+
+/**
+ * Parse and validate a non-negative integer from string.
+ * Allows 0 for "skip this phase" semantics.
+ * @param name - Description of the value (e.g., '--planning-cycles')
+ */
+function parseNonNegativeInt(value: string, name: string): number {
+    const parsed = parseInt(value, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+        throw new Error(`Invalid value for ${name}: "${value}". Must be a non-negative integer.`);
     }
     return parsed;
 }
@@ -34,7 +47,7 @@ function parsePositiveFloat(value: string, name: string): number {
  */
 export function parseArgs(args: string[]): Partial<FactoryConfig> {
     const config: Partial<FactoryConfig> = {};
-    const BOOLEAN_FLAGS = new Set(['dry-run', 'mock-llm', 'verbose', 'quiet']);
+    const BOOLEAN_FLAGS = new Set(['dry-run', 'mock-llm', 'verbose', 'quiet', 'plan', 'verbose-planning']);
 
     let i = 0;
     while (i < args.length) {
@@ -56,13 +69,13 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
                     config.baseUrl = value;
                     break;
                 case 'planning-cycles':
-                    config.planningCycles = parsePositiveInt(value, '--planning-cycles');
+                    config.planningCycles = parseNonNegativeInt(value, '--planning-cycles');
                     break;
                 case 'verify-cycles':
-                    config.verificationCycles = parsePositiveInt(value, '--verify-cycles');
+                    config.verificationCycles = parseNonNegativeInt(value, '--verify-cycles');
                     break;
                 case 'worker-iters':
-                    config.workerIterations = parsePositiveInt(value, '--worker-iters');
+                    config.workerIterations = parseNonNegativeInt(value, '--worker-iters');
                     break;
                 case 'timeout':
                     config.timeout = parsePositiveInt(value, '--timeout');
@@ -92,6 +105,12 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
                     break;
                 case 'quiet':
                     config.quiet = true;
+                    break;
+                case 'plan':
+                    config.planOnly = true;
+                    break;
+                case 'verbose-planning':
+                    config.verbosePlanning = true;
                     break;
             }
 
@@ -171,13 +190,15 @@ Usage: factory [options] "<goal>"
 Options:
   --model <model>           LLM model (default: opencode/glm-4.7-free)
   --base-url <url>          Custom LLM endpoint (OpenAI-compatible)
-  --planning-cycles <n>     Max planning iterations (default: 3)
-  --verify-cycles <n>       Max verification iterations (default: 3)
-  --worker-iters <n>        Max worker iterations per task (default: 10)
+  --planning-cycles <n>     Max planning iterations (default: 3, 0=skip)
+  --verify-cycles <n>       Max verification iterations (default: 3, 0=skip)
+  --worker-iters <n>        Max worker iterations per task (default: 10, 0=skip)
   --timeout <seconds>       Global timeout (default: 3600)
   --max-cost <usd>          Maximum cost limit in USD
   --log-file <path>         Enable file logging (JSON Lines format)
   --log-level <level>       Log level: debug, info, warn, error (default: info)
+  --plan                    Run planning only (no execution phase)
+  --verbose-planning        Show full Architect/Critic output (debugging)
   --dry-run                 Output plan without execution
   --mock-llm                Use mock LLM for testing
   --verbose                 Verbose logging
@@ -187,6 +208,7 @@ Options:
 Examples:
   factory "Create a REST API in Go"
   factory --model gpt-4 --timeout 1800 "Add authentication"
+  factory --plan "Create plan only"
   factory --log-level debug "Debug task"
   factory --dry-run "Complex task"
 

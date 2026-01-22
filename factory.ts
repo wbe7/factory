@@ -3,7 +3,7 @@
  * Factory - Autonomous AI Software Engineering System
  * Main entry point
  */
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { $ } from 'bun';
 
 import { parseArgs, parseEnvConfig, mergeConfig } from './src/config';
@@ -22,6 +22,16 @@ const PROMPTS_DIR = 'prompts';
 let shuttingDown = false;
 let currentPrd: Prd | null = null;
 let globalLogger: Logger | null = null;
+
+// Scenario detection
+type Scenario = 'NEW_PROJECT' | 'UPDATE_PROJECT' | 'BROWNFIELD' | 'RESUME';
+
+function detectScenario(hasGoal: boolean, hasPrdFile: boolean, hasProjectFiles: boolean): Scenario {
+    if (!hasGoal && hasPrdFile) return 'RESUME';
+    if (hasPrdFile) return 'UPDATE_PROJECT';
+    if (hasProjectFiles) return 'BROWNFIELD';
+    return 'NEW_PROJECT';
+}
 
 /**
  * Gracefully shut down the factory, saving state.
@@ -138,11 +148,30 @@ async function main(): Promise<void> {
         await $`cd ${PROJECT_DIR} && git init`;
     }
 
+    // Detect and log scenario early (also needed for dry-run output)
+    const hasPrdFile = existsSync(PRD_FILE);
+    const hasProjectFiles = existsSync(PROJECT_DIR) &&
+        readdirSync(PROJECT_DIR).filter(f => !f.startsWith('.')).length > 0;
+    const scenario = detectScenario(!!config.goal, hasPrdFile, hasProjectFiles);
+
+    logger.info(`🎯 Detected scenario: ${scenario}`, {
+        goal: config.goal || 'Resume',
+        hasPrdFile,
+        hasProjectFiles,
+    });
+
+    // Warn if common API keys are missing
+    if (!Bun.env.GOOGLE_API_KEY && !Bun.env.OPENAI_API_KEY && !Bun.env.ANTHROPIC_API_KEY) {
+        logger.warn('⚠️ No API keys found (GOOGLE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)');
+        logger.warn('   LLM calls may fail. See README for configuration.');
+    }
+
     // --- DRY RUN MODE ---
     if (config.dryRun) {
         logger.info('Dry run mode - would execute with:', {
             model: config.model,
             goal: config.goal,
+            scenario,
             planningCycles: config.planningCycles,
             verificationCycles: config.verificationCycles,
         });
@@ -176,24 +205,41 @@ async function main(): Promise<void> {
 
             const architectDuration = architectTimer();
 
-            const jsonDraft = extractJson(architectOutput);
+            // Use enhanced extractJson with file fallback
+            const extractionResult = extractJson(architectOutput, PRD_FILE);
+
+            // Log extraction details at INFO level (not DEBUG)
+            logger.info('   🏗️  Architect output analysis', {
+                strategy: extractionResult.strategy,
+                toolCallDetected: extractionResult.toolCallDetected,
+                outputPreview: architectOutput.slice(0, 300),
+            });
 
             // Use Zod validation with detailed error reporting
-            const [validatedPrd, validationErrors] = parsePrdWithErrors(jsonDraft);
+            const [validatedPrd, validationErrors] = parsePrdWithErrors(extractionResult.json);
             if (!validatedPrd) {
                 logger.error('Invalid JSON from Architect. Retrying...', {
                     duration: architectDuration,
-                    errors: validationErrors.slice(0, 5), // Show first 5 errors
+                    strategy: extractionResult.strategy,
+                    toolCallDetected: extractionResult.toolCallDetected,
+                    errors: validationErrors.slice(0, 5),
+                    rawPreview: extractionResult.json.slice(0, 200),
                 });
                 continue;
             }
 
             logger.info(`   🏗️  Architect: generated prd.json`, { duration: architectDuration });
 
-            prdContent = jsonDraft;
+            // Verbose planning output
+            if (config.verbosePlanning) {
+                logger.info('📝 Architect raw output:', { output: architectOutput });
+            }
+
+            const prdContent_validated = extractionResult.json;
             await createBackup(PRD_FILE);
-            await atomicWrite(PRD_FILE, jsonDraft);
+            await atomicWrite(PRD_FILE, prdContent_validated);
             currentPrd = validatedPrd;
+            prdContent = prdContent_validated;
 
             // 2. Critic
             const criticTimer = logger.timer('Critic agent');
@@ -204,6 +250,11 @@ async function main(): Promise<void> {
             }, config, logger, PROJECT_DIR);
 
             const criticDuration = criticTimer();
+
+            // Verbose planning output
+            if (config.verbosePlanning) {
+                logger.info('📝 Critic raw output:', { output: critique });
+            }
 
             if (critique.includes('NO_CRITICAL_ISSUES')) {
                 logger.info('✅ Plan Approved!', { duration: criticDuration });
@@ -222,6 +273,14 @@ async function main(): Promise<void> {
         if (!planApproved) {
             logger.error('Failed to approve plan after maximum cycles');
             await shutdown(1);
+        }
+
+        // Planning-only mode exit
+        if (config.planOnly) {
+            logger.info('📋 Planning-only mode: prd.json created. Skipping execution.');
+            logger.info('   Run "factory" without --plan to execute tasks.');
+            await logger.close();
+            process.exit(0);
         }
     }
 
