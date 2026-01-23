@@ -115,6 +115,21 @@ bunx tsc --noEmit --skipLibCheck
 make docker-test-env
 ```
 
+### Manual Verification (Production)
+
+Verified with `opencode/grok-code` (Free Tier) and `openrouter/meta-llama/llama-3.3-70b-instruct` (Free Tier).
+
+- **Scenario 1 (NEW_PROJECT):** ✅ Passed (Plan -> Code -> Tests -> Fix -> Verify)
+- **Scenario 2 (UPDATE_PROJECT):** ✅ Passed (Self-provisioning logic verified)
+- **Configuration:** Verified `opencode` provider defaults and `openrouter` object-based config.
+
+### Fixes Applied (Post-Implementation)
+
+- **Config Compatibility:** Updated defaults to use `opencode/grok-code` (GLM no longer free).
+- **Docker Wrapper:** Added `OPENROUTER_API_KEY` and `GOOGLE_GENERATIVE_AI_API_KEY` pass-through.
+- **Warning Logic:** Suppressed "No API keys" warning if `config.json` exists or model is free.
+- **README:** Updated documentation for new opencode config format.
+
 ---
 
 ## Notes
