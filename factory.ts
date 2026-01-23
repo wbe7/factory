@@ -160,8 +160,15 @@ async function main(): Promise<void> {
         hasProjectFiles,
     });
 
-    // Warn if common API keys are missing
-    if (!Bun.env.GOOGLE_API_KEY && !Bun.env.OPENAI_API_KEY && !Bun.env.ANTHROPIC_API_KEY) {
+    // Warn if common API keys are missing, BUT only if no config file exists
+    // (User might have configured providers in ~/.config/opencode/config.json)
+    const hasConfig = existsSync(`${Bun.env.HOME}/.config/opencode/config.json`) ||
+        existsSync('/root/.config/opencode/config.json');
+
+    // Also skip warning if using a typically free model
+    const isFreeModel = config.model.includes('free') || config.model.includes('local');
+
+    if (!hasConfig && !isFreeModel && !Bun.env.GOOGLE_API_KEY && !Bun.env.OPENAI_API_KEY && !Bun.env.ANTHROPIC_API_KEY && !Bun.env.OPENROUTER_API_KEY) {
         logger.warn('⚠️ No API keys found (GOOGLE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)');
         logger.warn('   LLM calls may fail. See README for configuration.');
     }

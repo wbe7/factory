@@ -204,9 +204,13 @@ Factory uses [opencode-ai](https://github.com/opencode-ai/opencode) for LLM inte
 1. Create `~/.config/opencode/config.json`:
 ```json
 {
-  "provider": "google",
-  "model": "gemini-3-flash-preview",
-  "non_interactive": true
+  "provider": {
+    "google": {
+      "models": {
+        "gemini-1.5-pro-latest": {}
+      }
+    }
+  }
 }
 ```
 
@@ -218,19 +222,24 @@ factory "Create a REST API"
 
 ### OpenAI / OpenRouter
 
-1. Create config:
+1. Create config for OpenRouter:
 ```json
 {
-  "provider": "openai",
-  "model": "gpt-4o",
-  "non_interactive": true
+  "provider": {
+    "openrouter": {
+      "models": {
+        "anthropic/claude-3.5-sonnet": {}
+      }
+    }
+  }
 }
 ```
 
 2. Set API key:
 ```bash
-export OPENAI_API_KEY="sk-..."
-factory "Create a REST API"
+export OPENROUTER_API_KEY="sk-or-..."
+# Use provider/model format
+factory --model openrouter/anthropic/claude-3.5-sonnet "Create a REST API"
 ```
 
 ### Local Models (Ollama)
