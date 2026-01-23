@@ -121,6 +121,8 @@ Verified with `opencode/grok-code` (Free Tier) and `openrouter/meta-llama/llama-
 
 - **Scenario 1 (NEW_PROJECT):** ✅ Passed (Plan -> Code -> Tests -> Fix -> Verify)
 - **Scenario 2 (UPDATE_PROJECT):** ✅ Passed (Self-provisioning logic verified)
+- **Scenario 3 (BROWNFIELD):** ✅ Passed (Correctly detected existing code, created refactoring plan)
+- **Scenario 4 (RESUME):** ✅ Passed (Correctly detected pending PRD, skipped planning, started execution)
 - **Configuration:** Verified `opencode` provider defaults and `openrouter` object-based config.
 
 ### Fixes Applied (Post-Implementation)
