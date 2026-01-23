@@ -147,7 +147,7 @@ factory  # No arguments = resume from last pending task
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model <model>` | `opencode/glm-4.7-free` | LLM model |
+| `--model <model>` | `opencode/grok-code` | LLM model |
 | `--base-url <url>` | - | Custom LLM endpoint (OpenAI-compatible) |
 | `--planning-cycles <n>` | `3` | Max planning iterations (0=skip) |
 | `--verify-cycles <n>` | `3` | Max verification iterations (0=skip) |
@@ -167,7 +167,7 @@ factory  # No arguments = resume from last pending task
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FACTORY_MODEL` | `opencode/glm-4.7-free` | LLM model |
+| `FACTORY_MODEL` | `opencode/grok-code` | LLM model |
 | `FACTORY_TIMEOUT` | `3600` | Global timeout (seconds) |
 | `FACTORY_PLANNING_CYCLES` | `3` | Max planning iterations |
 | `FACTORY_VERIFICATION_CYCLES` | `3` | Max verification iterations |
