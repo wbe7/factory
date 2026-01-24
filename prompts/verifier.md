@@ -8,14 +8,12 @@ Your goal is to verify the work done by the Worker for a specific User Story.
 
 **Environment:**
 - You are running in the project root directory (current directory).
-- The `prd.json` file contains the project configuration with `test_command`.
-- The Worker claims the task is complete.
+- The detected test command is: `{{TEST_COMMAND}}`.
 
 **Your Mission:**
-1.  **Read prd.json:** Find the `test_command` (e.g., `go test ./...`, `bun test`, `npm test`).
-2.  **Run Tests:** Execute the test command. Do tests pass?
-3.  **Code Review:** Check the implemented files. Is the code clean? Does it match the requirements?
-4.  **Acceptance Check:** Verify each criterion in Success Criteria is met.
+1.  **Run Tests:** Execute `{{TEST_COMMAND}}`. Do tests pass?
+2.  **Code Review:** Check the implemented files. Is the code clean? Does it match the requirements?
+3.  **Acceptance Check:** Verify each criterion in Success Criteria is met.
 
 **Output:**
 If everything passes and all criteria are met:

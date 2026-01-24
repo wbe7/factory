@@ -10,8 +10,9 @@ import { parseArgs, parseEnvConfig, mergeConfig } from './src/config';
 import { workerLoop, runOpencode } from './src/worker';
 import { atomicWrite, createBackup, extractJson } from './src/utils';
 import { createLogger, Logger } from './src/logger';
+import { ProjectContext } from './src/context';
 import { parsePrdWithErrors, formatPrdErrors } from './src/schemas';
-import type { FactoryConfig, Prd, PrdTask } from './src/types';
+import type { FactoryConfig, Prd, PrdTask, ProjectType } from './src/types';
 
 // Constants
 const PROJECT_DIR = 'target_project';
@@ -24,14 +25,10 @@ let currentPrd: Prd | null = null;
 let globalLogger: Logger | null = null;
 
 // Scenario detection
-type Scenario = 'NEW_PROJECT' | 'UPDATE_PROJECT' | 'BROWNFIELD' | 'RESUME';
+// Re-using ProjectType from context as Scenario
 
-function detectScenario(hasGoal: boolean, hasPrdFile: boolean, hasProjectFiles: boolean): Scenario {
-    if (!hasGoal && hasPrdFile) return 'RESUME';
-    if (hasPrdFile) return 'UPDATE_PROJECT';
-    if (hasProjectFiles) return 'BROWNFIELD';
-    return 'NEW_PROJECT';
-}
+
+
 
 /**
  * Gracefully shut down the factory, saving state.
@@ -131,6 +128,7 @@ async function main(): Promise<void> {
     // Initialize logger
     const logger = createLogger(config);
     globalLogger = logger;
+    const projectContext = new ProjectContext();
 
     logger.info(`Factory started`, { goal: config.goal || 'Resume', model: config.model });
     if (config.logFile) {
@@ -149,15 +147,26 @@ async function main(): Promise<void> {
     }
 
     // Detect and log scenario early (also needed for dry-run output)
+    let scenario: ProjectType;
     const hasPrdFile = existsSync(PRD_FILE);
-    const hasProjectFiles = existsSync(PROJECT_DIR) &&
-        readdirSync(PROJECT_DIR).filter(f => !f.startsWith('.')).length > 0;
-    const scenario = detectScenario(!!config.goal, hasPrdFile, hasProjectFiles);
+
+    // The RESUME scenario (no goal) should have the highest priority to avoid ambiguity with force flags.
+    if (!config.goal && hasPrdFile) {
+        scenario = 'RESUME';
+    } else if (config.forceNew) {
+        scenario = 'NEW_PROJECT';
+        logger.info('⚠️ Force-flag active: treating as NEW_PROJECT');
+    } else if (config.forceBrownfield) {
+        scenario = 'BROWNFIELD';
+        logger.info('⚠️ Force-flag active: treating as BROWNFIELD');
+    } else {
+        // Fallback to auto-detection when a goal is provided.
+        scenario = await projectContext.detectProjectType(PROJECT_DIR);
+    }
 
     logger.info(`🎯 Detected scenario: ${scenario}`, {
         goal: config.goal || 'Resume',
         hasPrdFile,
-        hasProjectFiles,
     });
 
     // Warn if common API keys are missing, BUT only if no config file exists
@@ -206,10 +215,21 @@ async function main(): Promise<void> {
             const architectTimer = logger.timer('Architect agent');
             logger.info('   🏗️  Architect: analyzing goal...');
 
+            // Scan project context
+            const fileTree = await projectContext.scanFileTree(PROJECT_DIR, 100);
+            const existingTests = (await projectContext.detectTestFiles(PROJECT_DIR)).join('\n');
+
+            logger.debug('Context scanned', {
+                filesFound: fileTree ? fileTree.split('\n').length : 0,
+                testsFound: existingTests ? existingTests.split('\n').length : 0
+            });
+
             const architectOutput = await runAgent(`${PROMPTS_DIR}/architect.md`, {
                 '{{GOAL}}': config.goal + (criticFeedback ? `\n\nCRITIC FEEDBACK: ${criticFeedback}` : ''),
                 '{{CURRENT_PRD}}': prdContent,
                 '{{MODE}}': mode,
+                '{{FILE_TREE}}': fileTree || '(empty)',
+                '{{EXISTING_TESTS}}': existingTests || '(none)',
             }, config, logger, PROJECT_DIR);
 
             const architectDuration = architectTimer();
@@ -371,10 +391,14 @@ async function main(): Promise<void> {
             logger.info('   🕵️ Verifier checking...');
             const verifyTimer = logger.timer('Verifier agent');
 
+            // Default test command fallback
+            const testCommand = currentPrd.project.test_command || 'bun test';
+
             const verifyResult = await runAgent(`${PROMPTS_DIR}/verifier.md`, {
                 '{{TASK_ID}}': task.id,
                 '{{TASK_TITLE}}': task.title,
                 '{{TASK_CRITERIA}}': JSON.stringify(task.acceptance_criteria),
+                '{{TEST_COMMAND}}': testCommand,
             }, config, logger, PROJECT_DIR);
 
             const verifyDuration = verifyTimer();

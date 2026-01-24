@@ -9,6 +9,17 @@ Current PRD:
 {{CURRENT_PRD}}
 ```
 
+**Project Context:**
+File Tree (partial):
+```
+{{FILE_TREE}}
+```
+
+Existing Tests:
+```
+{{EXISTING_TESTS}}
+```
+
 **Task:**
 1.  **If NEW_PROJECT:** Create a full `prd.json` from scratch.
 2.  **If UPDATE_PROJECT:**

@@ -8,7 +8,7 @@
 | 1 | CLI Refactoring & Core Loop Rewrite | ✅ Completed | `feature/phase-1-cli-refactoring` |
 | 2 | Logging & Observability | ✅ Completed | `feature/phase-2-logging` |
 | 2.5 | Stability & Debugging | ✅ Completed | `feature/phase-2.5-stability` |
-| 3 | Project Context Enhancement | 🔲 Planned | - |
+| 3 | Project Context Enhancement | ✅ Completed | `feature/phase-3-context` |
 | 4 | Git Worktree Isolation | 🔲 Planned | - |
 | 5 | Universal Test Runner & Quality Gate | 🔲 Planned | - |
 | 6 | Docker Image Optimization | 🔲 Planned | - |
@@ -18,7 +18,7 @@
 | 10 | Cost Tracking & Analytics | 🔲 Planned | - |
 | 11 | Live Integration Testing | 🔲 Planned | - |
 
-**Current Focus:** Phase 3 - Project Context Enhancement
+**Current Focus:** Phase 4 - Git Worktree Isolation
 
 ---
 
@@ -456,19 +456,21 @@ FACTORY_MODEL=gemini-3-pro-preview FACTORY_LOG_LEVEL=debug factory --dry-run "te
 - [ ] All 82+ tests pass
 - [ ] Zero type duplication warnings
 
-### Phase 3: Project Context Enhancement 🔲
+### Phase 3: Project Context Enhancement ✅
+
+**Status:** Completed (PR #3 equivalent)
 
 **Goal:** Give Architect agent more context about existing project.
 
 **Deliverables:**
-- [ ] Add file tree scanning (`find . -type f | head -100`)
-- [ ] Inject file tree into Architect prompt
-- [ ] Add existing tests discovery (look for `*_test.go`, `*.spec.ts`, etc.)
-- [ ] Pass test command from prd.json to Verifier
-- [ ] Improve Brownfield scenario detection:
-  - Heuristics: `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml` = real project
-  - Ignore: Only dotfiles or single README = treat as new
-  - Add `--force-brownfield` / `--force-new` override flags
+- [x] Add file tree scanning (`find . -type f | head -100`) - *Implemented via ProjectContext*
+- [x] Inject file tree into Architect prompt
+- [x] Add existing tests discovery (look for `*_test.go`, `*.spec.ts`, etc.)
+- [x] Pass test command from prd.json to Verifier
+- [x] Improve Brownfield scenario detection:
+  - [x] Heuristics: `package.json`, `go.mod`, etc.
+  - [x] Ignore: Only dotfiles or single README.
+  - [x] Add `--force-brownfield` / `--force-new` override flags
 
 **Verification:**
 - E2E: Run on existing Go project, verify Architect sees file structure

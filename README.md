@@ -111,33 +111,77 @@ The `prd.json` file is the source of truth:
 
 ---
 
-## 🚦 Usage Scenarios
+## 🚦 Usage Scenarios & Workflows
 
-Factory auto-detects the project state:
+Factory automatically detects the project state to determine the appropriate workflow.
 
-### 1. New Project (Greenfield)
-```bash
-mkdir my-app && cd my-app
-factory "Create a Tic-Tac-Toe game in Python"
-```
+| Scenario | Trigger | Description | Workflow |
+| :--- | :--- | :--- | :--- |
+| **NEW_PROJECT**<br>(Greenfield) | `factory "Goal"`<br>(Empty dir) | Starts a project from scratch. | **Architect** creates full plan -> **Worker** implements all tasks. |
+| **BROWNFIELD**<br>(Legacy) | `factory "Goal"`<br>(Files exist) | Adapts to existing code structure. | **Architect** analyzes code/tests -> Creates `prd.json` -> **Worker** implements. |
+| **UPDATE_PROJECT**<br>(Evolution) | `factory "Goal"`<br>(`prd.json` exists) | Adds new features to managed project. | **Architect** appends new tasks to `prd.json` -> **Worker** implements *only new* tasks. |
+| **RESUME**<br>(Recovery) | `factory`<br>(No goal) | Continues interrupted session. | **Skips Planning** -> **Worker** executes pending tasks from `prd.json`. |
 
-### 2. Update Existing Project
-```bash
-cd my-app
-factory "Add a high score board that saves to JSON"
-```
+### Detailed Behavior
 
-### 3. Brownfield (Legacy Code)
-```bash
-cd legacy-api
-factory "Refactor /auth route to use JWT"
-```
+1.  **New Project (Greenfield)**
+    *   **Context**: Empty directory (or just `.gitignore`/`README.md`).
+    *   **Action**: Architect defines the tech stack and creates a complete project plan from scratch.
+    *   **Use Case**: Starting a new microservice or CLI tool.
 
-### 4. Resume Interrupted Session
-```bash
-cd my-app
-factory  # No arguments = resume from last pending task
-```
+    ```bash
+    mkdir my-app && cd my-app
+    factory "Create a Tic-Tac-Toe game in Python"
+    ```
+
+2.  **Brownfield (Legacy Code)**
+    *   **Context**: Existing code (e.g., `package.json`, `main.go`) but no `prd.json`.
+    *   **Action**: Architect analyzes the file tree and existing tests to create a plan that respects the current architecture.
+    *   **Use Case**: Adding features to a project you didn't create with Factory.
+
+    ```bash
+    cd legacy-api
+    factory "Refactor /auth route to use JWT"
+    ```
+
+3.  **Update Project**
+    *   **Context**: Project already has `prd.json`.
+    *   **Action**: Architect reads the *new goal* and *existing plan*. It preserves completed tasks and appends new ones to achieve the goal.
+    *   **Use Case**: Adding a feature to a Factory-managed project.
+
+    ```bash
+    cd my-app
+    factory "Add a high score board that saves to JSON"
+    ```
+
+4.  **Resume Interrupted Session**
+    *   **Context**: `prd.json` contains tasks with status `pending` or `implementation`.
+    *   **Action**: Skips the Architect phase entirely. Immediately starts the Worker loop on the first pending task.
+    *   **Use Case**: Continuing after a crash, timeout, or manual stop. Also used for "Plan-then-Execute" workflow.
+
+    ```bash
+    cd my-app
+    factory  # No arguments = resume
+    ```
+
+### Manual Overrides & Priority
+
+Factory determines the mode in this specific order:
+
+1.  **Resume Check**: If `prd.json` exists AND no goal is provided -> **RESUME** (Highest priority).
+2.  **Override Flags**: `--force-new` or `--force-brownfield`.
+3.  **Update Check**: If `prd.json` exists AND goal is provided -> **UPDATE_PROJECT**.
+4.  **Brownfield Check**: If significant files exist (code, configs) -> **BROWNFIELD**.
+5.  **Default**: Empty directory -> **NEW_PROJECT**.
+
+### Deep Dive: Resume Mode
+
+The `RESUME` mode (`factory` without args) serves two distinct purposes:
+
+1.  **Recovery**: If the script crashes, runs out of money, or is stopped manually (Ctrl+C), simply run `factory` again. It will skip the Architect and continue executing the plan from the first pending task.
+2.  **Plan-Execute Separation**: You can split the workflow into two stages:
+    *   **Stage 1**: `factory --plan "Goal"` — Creates `prd.json` but does *not* write any code. You can review and edit the JSON manually.
+    *   **Stage 2**: `factory` — Reads your approved (and potentially edited) plan and executes it.
 
 ---
 
