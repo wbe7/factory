@@ -51,6 +51,23 @@ describe('E2E: Scenario Detection', () => {
         const output = proc.stdout.toString() + proc.stderr.toString();
         expect(output).toContain('BROWNFIELD');
     });
+
+    test('--force-new flag overrides BROWNFIELD', async () => {
+        writeFileSync(`${TEST_DIR}/target_project/main.go`, 'package main');
+
+        const proc = await $`bun ${FACTORY_PATH}/factory.ts --mock-llm --dry-run --force-new "Test"`.cwd(TEST_DIR).nothrow();
+        const output = proc.stdout.toString() + proc.stderr.toString();
+        expect(output).toContain('Force-flag active: treating as NEW_PROJECT');
+        expect(output).toContain('Detected scenario: NEW_PROJECT');
+    });
+
+    test('--force-brownfield flag overrides NEW_PROJECT', async () => {
+        // Empty dir
+        const proc = await $`bun ${FACTORY_PATH}/factory.ts --mock-llm --dry-run --force-brownfield "Test"`.cwd(TEST_DIR).nothrow();
+        const output = proc.stdout.toString() + proc.stderr.toString();
+        expect(output).toContain('Force-flag active: treating as BROWNFIELD');
+        expect(output).toContain('Detected scenario: BROWNFIELD');
+    });
 });
 
 describe('E2E: New CLI Flags', () => {

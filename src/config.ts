@@ -112,6 +112,12 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
                 case 'verbose-planning':
                     config.verbosePlanning = true;
                     break;
+                case 'force-new':
+                    config.forceNew = true;
+                    break;
+                case 'force-brownfield':
+                    config.forceBrownfield = true;
+                    break;
             }
 
             // Skip next arg if it was consumed as value

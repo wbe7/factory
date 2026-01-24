@@ -17,10 +17,13 @@ export interface FactoryConfig {
     logLevel: LogLevel;
     planOnly: boolean;        // Phase 2.5: Run planning without execution
     verbosePlanning: boolean; // Phase 2.5: Show full Architect/Critic output
+    forceNew: boolean;        // Phase 3: Force NEW_PROJECT scenario
+    forceBrownfield: boolean; // Phase 3: Force BROWNFIELD scenario
 }
 
 // Re-export Zod-inferred types from schemas.ts (single source of truth)
 export type { Prd, PrdProject, PrdTask, TaskStatus } from './schemas';
+export type { ProjectType } from './context';
 
 export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
     model: 'opencode/big-pickle',
@@ -38,5 +41,7 @@ export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
     logLevel: 'info',
     planOnly: false,
     verbosePlanning: false,
+    forceNew: false,
+    forceBrownfield: false,
 };
 
