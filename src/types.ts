@@ -23,7 +23,7 @@ export interface FactoryConfig {
 export type { Prd, PrdProject, PrdTask, TaskStatus } from './schemas';
 
 export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
-    model: 'opencode/grok-code',
+    model: 'opencode/big-pickle',
     baseUrl: null,
     planningCycles: 3,
     verificationCycles: 3,

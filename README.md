@@ -147,7 +147,7 @@ factory  # No arguments = resume from last pending task
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model <model>` | `opencode/grok-code` | LLM model |
+| `--model <model>` | `opencode/big-pickle` | LLM model |
 | `--base-url <url>` | - | Custom LLM endpoint (OpenAI-compatible) |
 | `--planning-cycles <n>` | `3` | Max planning iterations (0=skip) |
 | `--verify-cycles <n>` | `3` | Max verification iterations (0=skip) |
@@ -167,7 +167,7 @@ factory  # No arguments = resume from last pending task
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FACTORY_MODEL` | `opencode/grok-code` | LLM model |
+| `FACTORY_MODEL` | `opencode/big-pickle` | LLM model |
 | `FACTORY_TIMEOUT` | `3600` | Global timeout (seconds) |
 | `FACTORY_PLANNING_CYCLES` | `3` | Max planning iterations |
 | `FACTORY_VERIFICATION_CYCLES` | `3` | Max verification iterations |
@@ -207,7 +207,7 @@ Factory uses [opencode-ai](https://github.com/opencode-ai/opencode) for LLM inte
   "provider": {
     "google": {
       "models": {
-        "gemini-1.5-pro-latest": {}
+        "gemini-3-pro-preview": {}
       }
     }
   }
