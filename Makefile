@@ -30,3 +30,15 @@ build:
 # Clean build artifacts (does not remove log files as path is configurable)
 clean:
 	rm -rf dist
+
+# Test Docker ENV var propagation
+.PHONY: docker-test-env
+docker-test-env:
+	@echo "Testing FACTORY_MODEL env var propagation in Docker..."
+	@docker run --rm \
+		-e FACTORY_MODEL=test-model \
+		-e FACTORY_LOG_LEVEL=debug \
+		wbe7/factory:latest \
+		--dry-run "Test ENV vars" 2>&1 | grep -q 'test-model' && \
+		echo "✅ ENV vars working" || \
+		(echo "❌ ENV vars not propagated"; exit 1)

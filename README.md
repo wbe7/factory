@@ -2,7 +2,7 @@
 
 > **Autonomous AI Software Engineering System**
 
-[![Tests](https://img.shields.io/badge/tests-46%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-104%20passing-brightgreen)]()
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)]()
 [![Docker](https://img.shields.io/badge/container-Docker-2496ED)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
@@ -147,15 +147,17 @@ factory  # No arguments = resume from last pending task
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model <model>` | `opencode/glm-4.7-free` | LLM model |
+| `--model <model>` | `opencode/big-pickle` | LLM model |
 | `--base-url <url>` | - | Custom LLM endpoint (OpenAI-compatible) |
-| `--planning-cycles <n>` | `3` | Max planning iterations |
-| `--verify-cycles <n>` | `3` | Max verification iterations |
-| `--worker-iters <n>` | `10` | Max worker iterations per task |
+| `--planning-cycles <n>` | `3` | Max planning iterations (0=skip) |
+| `--verify-cycles <n>` | `3` | Max verification iterations (0=skip) |
+| `--worker-iters <n>` | `10` | Max worker iterations per task (0=skip) |
 | `--timeout <seconds>` | `3600` | Global timeout |
 | `--max-cost <usd>` | - | Maximum cost limit |
 | `--log-file <path>` | - | Enable file logging (JSON Lines format) |
 | `--log-level <level>` | `info` | Log level: debug, info, warn, error |
+| `--plan` | - | Run planning only (no execution) |
+| `--verbose-planning` | - | Show full Architect/Critic output |
 | `--dry-run` | - | Output plan without execution |
 | `--verbose` | - | Verbose logging |
 | `--quiet` | - | Minimal output |
@@ -165,7 +167,7 @@ factory  # No arguments = resume from last pending task
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FACTORY_MODEL` | `opencode/glm-4.7-free` | LLM model |
+| `FACTORY_MODEL` | `opencode/big-pickle` | LLM model |
 | `FACTORY_TIMEOUT` | `3600` | Global timeout (seconds) |
 | `FACTORY_PLANNING_CYCLES` | `3` | Max planning iterations |
 | `FACTORY_VERIFICATION_CYCLES` | `3` | Max verification iterations |
@@ -190,6 +192,63 @@ export OPENAI_BASE_URL="http://192.168.77.66:8000/v1"
 export OPENAI_API_KEY="your-key"
 factory --model nemotron-nano-30b "Add authentication"
 ```
+
+---
+
+## 🔑 Configuring LLM Providers
+
+Factory uses [opencode-ai](https://github.com/opencode-ai/opencode) for LLM interaction. Configure your provider before running.
+
+### Google (Gemini)
+
+1. Create `~/.config/opencode/config.json`:
+```json
+{
+  "provider": {
+    "google": {
+      "models": {
+        "gemini-3-pro-preview": {}
+      }
+    }
+  }
+}
+```
+
+2. Set API key:
+```bash
+export GOOGLE_API_KEY="your-api-key"
+factory "Create a REST API"
+```
+
+### OpenAI / OpenRouter
+
+1. Create config for OpenRouter:
+```json
+{
+  "provider": {
+    "openrouter": {
+      "models": {
+        "anthropic/claude-3.5-sonnet": {}
+      }
+    }
+  }
+}
+```
+
+2. Set API key:
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+# Use provider/model format
+factory --model openrouter/anthropic/claude-3.5-sonnet "Create a REST API"
+```
+
+### Local Models (Ollama)
+
+```bash
+factory --base-url http://localhost:11434/v1 --model llama3 "Create a CLI"
+```
+
+> **⚠️ Warning:** If no API keys are found (`GOOGLE_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`), Factory will show a warning at startup.
 
 ---
 

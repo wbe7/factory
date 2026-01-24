@@ -15,42 +15,15 @@ export interface FactoryConfig {
     quiet: boolean;
     logFile: string | null;   // null = stdout only (default)
     logLevel: LogLevel;
+    planOnly: boolean;        // Phase 2.5: Run planning without execution
+    verbosePlanning: boolean; // Phase 2.5: Show full Architect/Critic output
 }
 
-export interface PrdProject {
-    name: string;
-    description: string;
-    tech_stack: string[];
-    test_command: string;
-    quality_gate?: {
-        lint_command?: string | null;
-        type_check?: string | null;
-        security_scan?: string | null;
-    };
-}
-
-export interface PrdTask {
-    id: string;
-    title: string;
-    description: string;
-    acceptance_criteria: string[];
-    dependencies: string[];
-    status: 'pending' | 'implementation' | 'verification' | 'completed' | 'failed';
-    passes: boolean;
-    metrics?: {
-        tokens_used: number;
-        estimated_cost_usd: number;
-        duration_seconds: number;
-    };
-}
-
-export interface Prd {
-    project: PrdProject;
-    user_stories: PrdTask[];
-}
+// Re-export Zod-inferred types from schemas.ts (single source of truth)
+export type { Prd, PrdProject, PrdTask, TaskStatus } from './schemas';
 
 export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
-    model: 'opencode/glm-4.7-free',
+    model: 'opencode/big-pickle',
     baseUrl: null,
     planningCycles: 3,
     verificationCycles: 3,
@@ -63,4 +36,7 @@ export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
     quiet: false,
     logFile: null,      // No file logging by default (Docker-friendly)
     logLevel: 'info',
+    planOnly: false,
+    verbosePlanning: false,
 };
+

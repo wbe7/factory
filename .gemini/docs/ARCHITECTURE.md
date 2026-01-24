@@ -78,9 +78,9 @@ Main orchestrator that manages the two-phase loop.
 ```typescript
 interface FactoryConfig {
   model: string;              // LLM model identifier
-  planningCycles: number;     // Max architect-critic iterations
-  verificationCycles: number; // Max worker-verifier iterations
-  workerIterations: number;   // Max iterations within worker loop
+  planningCycles: number;     // Max architect-critic iterations (0=skip)
+  verificationCycles: number; // Max worker-verifier iterations (0=skip)
+  workerIterations: number;   // Max iterations within worker loop (0=skip)
   timeout: number;            // Global timeout in seconds (default: 3600)
   maxCost: number | null;     // Max cost in USD, null = unlimited
   dryRun: boolean;            // If true, output prd.json without execution
@@ -88,6 +88,8 @@ interface FactoryConfig {
   verbose: boolean;           // Verbose logging
   logFile: string | null;     // Opt-in file logging path (null = stdout only)
   logLevel: LogLevel;         // Log level: debug | info | warn | error
+  planOnly: boolean;          // If true, run planning only (Phase 2.5)
+  verbosePlanning: boolean;   // If true, show full Architect/Critic output (Phase 2.5)
 }
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';

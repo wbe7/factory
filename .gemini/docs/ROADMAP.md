@@ -7,7 +7,7 @@
 | 0 | Bootstrap & Current State | ✅ Completed | `main` |
 | 1 | CLI Refactoring & Core Loop Rewrite | ✅ Completed | `feature/phase-1-cli-refactoring` |
 | 2 | Logging & Observability | ✅ Completed | `feature/phase-2-logging` |
-| 2.5 | Stability & Debugging | 🔲 Planned | - |
+| 2.5 | Stability & Debugging | ✅ Completed | `feature/phase-2.5-stability` |
 | 3 | Project Context Enhancement | 🔲 Planned | - |
 | 4 | Git Worktree Isolation | 🔲 Planned | - |
 | 5 | Universal Test Runner & Quality Gate | 🔲 Planned | - |
@@ -18,7 +18,7 @@
 | 10 | Cost Tracking & Analytics | 🔲 Planned | - |
 | 11 | Live Integration Testing | 🔲 Planned | - |
 
-**Current Focus:** Phase 2.5 - Stability & Debugging
+**Current Focus:** Phase 3 - Project Context Enhancement
 
 ---
 
@@ -134,7 +134,7 @@
 
 ---
 
-### Phase 2.5: Stability & Debugging 🔲
+### Phase 2.5: Stability & Debugging ✅
 
 **Goal:** Fix critical stability issues observed in production testing. Ensure Factory reliably handles all 4 execution scenarios with minimal wasted cycles.
 
