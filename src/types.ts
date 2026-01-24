@@ -23,7 +23,7 @@ export interface FactoryConfig {
 export type { Prd, PrdProject, PrdTask, TaskStatus } from './schemas';
 
 export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
-    model: 'opencode/glm-4.7-free',
+    model: 'opencode/grok-code',
     baseUrl: null,
     planningCycles: 3,
     verificationCycles: 3,

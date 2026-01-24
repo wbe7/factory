@@ -188,7 +188,7 @@ export function printHelp(): void {
 Usage: factory [options] "<goal>"
 
 Options:
-  --model <model>           LLM model (default: opencode/glm-4.7-free)
+  --model <model>           LLM model (default: opencode/grok-code)
   --base-url <url>          Custom LLM endpoint (OpenAI-compatible)
   --planning-cycles <n>     Max planning iterations (default: 3, 0=skip)
   --verify-cycles <n>       Max verification iterations (default: 3, 0=skip)

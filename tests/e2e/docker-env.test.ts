@@ -25,7 +25,7 @@ describe('E2E: Environment Variables', () => {
 
     test('API key warning when no keys set', async () => {
         // Clear all API keys and check for warning
-        const proc = await $`GOOGLE_API_KEY= OPENAI_API_KEY= ANTHROPIC_API_KEY= bun factory.ts --dry-run "Test"`.nothrow();
+        const proc = await $`env HOME=/tmp/nonexistent GOOGLE_API_KEY= OPENAI_API_KEY= ANTHROPIC_API_KEY= OPENROUTER_API_KEY= bun factory.ts --dry-run "Test"`.nothrow();
         const output = proc.stdout.toString() + proc.stderr.toString();
         expect(output).toContain('No API keys found');
     });
