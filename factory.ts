@@ -147,22 +147,21 @@ async function main(): Promise<void> {
     }
 
     // Detect and log scenario early (also needed for dry-run output)
-    let scenario = await projectContext.detectProjectType(PROJECT_DIR);
+    let scenario: ProjectType;
+    const hasPrdFile = existsSync(PRD_FILE);
 
-    // Override logic
-    if (config.forceNew) {
+    // The RESUME scenario (no goal) should have the highest priority to avoid ambiguity with force flags.
+    if (!config.goal && hasPrdFile) {
+        scenario = 'RESUME';
+    } else if (config.forceNew) {
         scenario = 'NEW_PROJECT';
         logger.info('⚠️ Force-flag active: treating as NEW_PROJECT');
     } else if (config.forceBrownfield) {
         scenario = 'BROWNFIELD';
         logger.info('⚠️ Force-flag active: treating as BROWNFIELD');
-    }
-
-    const hasPrdFile = existsSync(PRD_FILE);
-
-    // Check scenario again to allow Resume override
-    if (scenario === 'UPDATE_PROJECT' && !config.goal) {
-        scenario = 'RESUME';
+    } else {
+        // Fallback to auto-detection when a goal is provided.
+        scenario = await projectContext.detectProjectType(PROJECT_DIR);
     }
 
     logger.info(`🎯 Detected scenario: ${scenario}`, {
@@ -221,7 +220,7 @@ async function main(): Promise<void> {
             const existingTests = (await projectContext.detectTestFiles(PROJECT_DIR)).join('\n');
 
             logger.debug('Context scanned', {
-                filesFound: fileTree.split('\n').length,
+                filesFound: fileTree ? fileTree.split('\n').length : 0,
                 testsFound: existingTests ? existingTests.split('\n').length : 0
             });
 

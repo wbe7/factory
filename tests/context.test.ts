@@ -111,7 +111,7 @@ describe('ProjectContext', () => {
         it('should detect NEW_PROJECT if only .gitignore or README exist (heuristics)', async () => {
             await fs.writeFile(path.join(TMP_DIR, '.gitignore'), '');
             const type1 = await ctx.detectProjectType(TMP_DIR);
-            expect(type1).toBe('NEW_PROJECT'); // Should arguably be new if just gitignore
+            expect(type1).toBe('NEW_PROJECT');
 
             await fs.writeFile(path.join(TMP_DIR, 'README.md'), '');
             const type2 = await ctx.detectProjectType(TMP_DIR);

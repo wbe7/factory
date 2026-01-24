@@ -71,8 +71,7 @@ export class ProjectContext {
                 }
             }
         } catch (e) {
-            // Ignore permission errors, but log for debug
-            // console.debug('Walk error:', e); 
+            // Silently ignore file system errors (e.g., permission denied during walk).
         }
     }
 
@@ -80,20 +79,6 @@ export class ProjectContext {
      * robustly detects the project state/scenario.
      */
     async detectProjectType(cwd: string): Promise<ProjectType> {
-        // 1. Check for prd.json (UPDATE or RESUME)
-        // Actually the Factory logic distinguishes RESUME vs UPDATE based on prd.json content (pending tasks).
-        // Here we just return UPDATE_PROJECT if prd.json exists, Factory handles the RESUME splitting?
-        // Looking at the walkthrough/docs:
-        // "RESUME: prd.json with pending tasks"
-        // "UPDATE_PROJECT: Existing prd.json with completed tasks" -> Architect appends new tasks
-        // "NEW_PROJECT: Empty dir"
-        // "BROWNFIELD: Files exist, no prd.json"
-
-        // However, existing factory logic might be relying on this detection. 
-        // Wait, the previous detection was in factory.ts and simple. 
-        // The requirement says: "return NEW, BROWNFIELD, etc."
-        // Let's implement basic checking.
-
         const hasPrd = await this.exists(path.join(cwd, 'prd.json'));
         if (hasPrd) return 'UPDATE_PROJECT'; // Caller handles RESUME check by reading the file
 
