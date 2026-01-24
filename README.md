@@ -168,8 +168,8 @@ Factory automatically detects the project state to determine the appropriate wor
 
 Factory determines the mode in this specific order:
 
-1.  **Override Flags**: `--force-new` or `--force-brownfield` (Highest priority).
-2.  **Resume Check**: If `prd.json` exists AND no goal is provided -> **RESUME**.
+1.  **Resume Check**: If `prd.json` exists AND no goal is provided -> **RESUME** (Highest priority).
+2.  **Override Flags**: `--force-new` or `--force-brownfield`.
 3.  **Update Check**: If `prd.json` exists AND goal is provided -> **UPDATE_PROJECT**.
 4.  **Brownfield Check**: If significant files exist (code, configs) -> **BROWNFIELD**.
 5.  **Default**: Empty directory -> **NEW_PROJECT**.
