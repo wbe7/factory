@@ -168,8 +168,11 @@ async function main(): Promise<void> {
     // Also skip warning if using a typically free model
     const isFreeModel = config.model.includes('free') || config.model.includes('local') || config.model.includes('pickle');
 
-    if (!hasConfig && !isFreeModel && !Bun.env.GOOGLE_API_KEY && !Bun.env.OPENAI_API_KEY && !Bun.env.ANTHROPIC_API_KEY && !Bun.env.OPENROUTER_API_KEY) {
-        logger.warn('⚠️ No API keys found (GOOGLE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY)');
+    const apiKeysToCheck = ['GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY'];
+    const hasApiKey = apiKeysToCheck.some(key => !!Bun.env[key]);
+
+    if (!hasConfig && !isFreeModel && !hasApiKey) {
+        logger.warn(`⚠️ No API keys found. Checked for: ${apiKeysToCheck.join(', ')}`);
         logger.warn('   LLM calls may fail. See README for configuration.');
     }
 
