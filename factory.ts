@@ -242,11 +242,10 @@ async function main(): Promise<void> {
                 logger.info('📝 Architect raw output:', { output: architectOutput });
             }
 
-            const prdContent_validated = extractionResult.json;
+            prdContent = extractionResult.json;
             await createBackup(PRD_FILE);
-            await atomicWrite(PRD_FILE, prdContent_validated);
+            await atomicWrite(PRD_FILE, prdContent);
             currentPrd = validatedPrd;
-            prdContent = prdContent_validated;
 
             // 2. Critic
             const criticTimer = logger.timer('Critic agent');
