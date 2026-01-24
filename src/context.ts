@@ -71,7 +71,8 @@ export class ProjectContext {
                 }
             }
         } catch (e) {
-            // Ignore permission errors
+            // Ignore permission errors, but log for debug
+            // console.debug('Walk error:', e); 
         }
     }
 
