@@ -166,10 +166,10 @@ async function main(): Promise<void> {
         existsSync('/root/.config/opencode/config.json');
 
     // Also skip warning if using a typically free model
-    const isFreeModel = config.model.includes('free') || config.model.includes('local');
+    const isFreeModel = config.model.includes('free') || config.model.includes('local') || config.model.includes('pickle');
 
     if (!hasConfig && !isFreeModel && !Bun.env.GOOGLE_API_KEY && !Bun.env.OPENAI_API_KEY && !Bun.env.ANTHROPIC_API_KEY && !Bun.env.OPENROUTER_API_KEY) {
-        logger.warn('⚠️ No API keys found (GOOGLE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)');
+        logger.warn('⚠️ No API keys found (GOOGLE_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY)');
         logger.warn('   LLM calls may fail. See README for configuration.');
     }
 
@@ -182,8 +182,7 @@ async function main(): Promise<void> {
             planningCycles: config.planningCycles,
             verificationCycles: config.verificationCycles,
         });
-        await logger.close();
-        process.exit(0);
+        await shutdown(0);
     }
 
     // --- PHASE 1: PLANNING ---
@@ -285,8 +284,7 @@ async function main(): Promise<void> {
         if (config.planOnly) {
             logger.info('📋 Planning-only mode: prd.json created. Skipping execution.');
             logger.info('   Run "factory" without --plan to execute tasks.');
-            await logger.close();
-            process.exit(0);
+            await shutdown(0);
         }
     }
 

@@ -69,11 +69,10 @@ export function extractJson(text: string, prdFilePath?: string): JsonExtractionR
     }
 
     // 3. Try extraction strategies in order
-    type Strategy = 'json_block' | 'any_block' | 'json_braces';
+    type Strategy = 'json_block' | 'any_block';
     const strategies: Array<[RegExp, Strategy]> = [
         [/```json\n([\s\S]*?)\n```/, 'json_block'],     // ```json ... ```
         [/```\n([\s\S]*?)\n```/, 'any_block'],          // ``` ... ``` (any lang)
-        [/(\{[\s\S]*\})/, 'json_braces'],               // { ... } (JSON object)
     ];
 
     for (const [regex, strategy] of strategies) {
@@ -81,6 +80,15 @@ export function extractJson(text: string, prdFilePath?: string): JsonExtractionR
         if (match?.[1]) {
             return { json: match[1], strategy, toolCallDetected };
         }
+    }
+
+    // 3b. Try explicit Brace Matching (fallback for raw JSON)
+    // More robust than regex for nested objects or surviving garbage text
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        const potentialJson = text.slice(firstBrace, lastBrace + 1);
+        return { json: potentialJson, strategy: 'json_braces', toolCallDetected };
     }
 
     // 4. Fallback: use raw text as-is
