@@ -12,8 +12,8 @@ Your goal is to verify the work done by the Worker for a specific User Story.
 
 **Your Mission:**
 1.  **Run Tests:** Execute `{{TEST_COMMAND}}`. Do tests pass?
-3.  **Code Review:** Check the implemented files. Is the code clean? Does it match the requirements?
-4.  **Acceptance Check:** Verify each criterion in Success Criteria is met.
+2.  **Code Review:** Check the implemented files. Is the code clean? Does it match the requirements?
+3.  **Acceptance Check:** Verify each criterion in Success Criteria is met.
 
 **Output:**
 If everything passes and all criteria are met:

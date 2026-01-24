@@ -159,9 +159,8 @@ async function main(): Promise<void> {
     }
 
     const hasPrdFile = existsSync(PRD_FILE);
-    const hasProjectFiles = existsSync(PROJECT_DIR) &&
-        readdirSync(PROJECT_DIR).filter(f => !f.startsWith('.')).length > 0;
 
+    // Check scenario again to allow Resume override
     if (scenario === 'UPDATE_PROJECT' && !config.goal) {
         scenario = 'RESUME';
     }
@@ -169,7 +168,6 @@ async function main(): Promise<void> {
     logger.info(`🎯 Detected scenario: ${scenario}`, {
         goal: config.goal || 'Resume',
         hasPrdFile,
-        hasProjectFiles,
     });
 
     // Warn if common API keys are missing, BUT only if no config file exists

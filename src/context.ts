@@ -15,35 +15,9 @@ export class ProjectContext {
      */
     async scanFileTree(cwd: string, maxFiles: number = 100): Promise<string> {
         const files: string[] = [];
-
-        // Manual recursive walk to prune directories early
-        const walk = async (dir: string, relativePath: string) => {
-            if (files.length >= maxFiles) return;
-
-            try {
-                const entries = await fs.readdir(dir, { withFileTypes: true });
-
-                // Sort for deterministic output
-                entries.sort((a, b) => a.name.localeCompare(b.name));
-
-                for (const entry of entries) {
-                    if (files.length >= maxFiles) return;
-                    if (this.scanIgnore.has(entry.name)) continue;
-
-                    const entryRelativePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
-
-                    if (entry.isDirectory()) {
-                        await walk(path.join(dir, entry.name), entryRelativePath);
-                    } else {
-                        files.push(entryRelativePath);
-                    }
-                }
-            } catch (err) {
-                // Ignore permission errors etc
-            }
-        };
-
-        await walk(cwd, '');
+        await this.walk(cwd, (entryPath) => {
+            files.push(entryPath);
+        }, maxFiles);
         return files.join('\n');
     }
 
@@ -55,39 +29,50 @@ export class ProjectContext {
         const testPattern = /((spec|test)\.(ts|js|jsx|tsx|mjs|cjs)$)|(_test\.go$)|(^test_.*\.py$)|((Test|Spec|Tests)\.(java|kt|scala|cs|swift|php)$)|(_(test|spec)\.(rb|rs|exs)$)|(_test\.(dart|c|cpp|h|hpp)$)/i;
         const testFiles: string[] = [];
 
-        // Use scanFileTree logic but maybe with a higher limit? 
-        // Or just reuse the logic without the file content overhead.
-        // We'll reuse the walk logic but specialized for searching.
-        // Actually, detectTestFiles should probably search deeper than scanFileTree for context.
-        // But for now let's keep it simple and reuse a similar walker.
+        await this.walk(cwd, (entryPath) => {
+            // Check filename specifically, not full path logic if regex expects file name
+            // Our regex checks strict endings or beginnings, so checking basenames is safer/easier usually, 
+            // but regex has assertions.
+            const basename = path.basename(entryPath);
+            if (testPattern.test(basename)) {
+                testFiles.push(entryPath);
+            }
+        }, 1000); // Higher limit for test searching
 
-        // We will scan up to 1000 files for tests to be safe
-        const searchLimit = 1000;
-        let scanned = 0;
-
-        const walkTests = async (dir: string, relativePath: string) => {
-            if (scanned >= searchLimit) return;
-
-            try {
-                const entries = await fs.readdir(dir, { withFileTypes: true });
-                for (const entry of entries) {
-                    if (scanned >= searchLimit) break;
-                    if (this.scanIgnore.has(entry.name)) continue;
-
-                    const entryRelativePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
-
-                    if (entry.isDirectory()) {
-                        await walkTests(path.join(dir, entry.name), entryRelativePath);
-                    } else if (testPattern.test(entry.name)) {
-                        testFiles.push(entryRelativePath);
-                    }
-                    scanned++;
-                }
-            } catch (e) { }
-        };
-
-        await walkTests(cwd, '');
         return testFiles;
+    }
+
+    private async walk(
+        dir: string,
+        callback: (relativePath: string) => void,
+        limit: number,
+        relativePath: string = '',
+        state: { count: number } = { count: 0 }
+    ): Promise<void> {
+        if (state.count >= limit) return;
+
+        try {
+            const entries = await fs.readdir(dir, { withFileTypes: true });
+
+            // Sort for deterministic output
+            entries.sort((a, b) => a.name.localeCompare(b.name));
+
+            for (const entry of entries) {
+                if (state.count >= limit) return;
+                if (this.scanIgnore.has(entry.name)) continue;
+
+                const entryRelativePath = relativePath ? path.join(relativePath, entry.name) : entry.name;
+
+                if (entry.isDirectory()) {
+                    await this.walk(path.join(dir, entry.name), callback, limit, entryRelativePath, state);
+                } else {
+                    callback(entryRelativePath);
+                    state.count++;
+                }
+            }
+        } catch (e) {
+            // Ignore permission errors
+        }
     }
 
     /**
