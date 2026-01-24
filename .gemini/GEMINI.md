@@ -28,6 +28,9 @@ Factory is an **autonomous, self-provisioning AI software engineering system**. 
 ### 2.2. Pull Request Workflow
 All changes go through `gh` CLI review.
 ```bash
+# 0. Pre-Flight Check (Mandatory)
+make full-e2e-test
+
 # 1. Commit changes
 git add .
 git commit -m "feat(phase2): implement git worktree isolation"
