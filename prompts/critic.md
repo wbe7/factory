@@ -13,7 +13,7 @@ You are a Principal Engineer. Review the PRD for quality and completeness.
 5.  **New Tasks:** Do all new tasks have `status: "pending"` and `passes: false`?
 
 **Output:**
-If the plan is solid and ready for execution:
+If the plan is solid and ready for execution (even if it's small/simple, as long as it correctly addresses the goal):
 `NO_CRITICAL_ISSUES`
 
 If there are problems:

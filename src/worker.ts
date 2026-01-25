@@ -33,7 +33,7 @@ export interface WorkerLoopResult {
  * Returns the output text.
  * @param cwd - Optional working directory for the opencode process
  */
-export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: string): Promise<string> {
+export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: string, extraEnv: Record<string, string> = {}): Promise<string> {
     const args = ['run'];
 
     if (config.model) {
@@ -53,6 +53,7 @@ export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: s
             env: {
                 ...process.env,
                 ...(config.baseUrl ? { OPENAI_BASE_URL: config.baseUrl } : {}),
+                ...extraEnv,
             },
         });
 

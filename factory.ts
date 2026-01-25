@@ -421,11 +421,12 @@ async function main(): Promise<void> {
             task.status = 'failed';
             await atomicWrite(PRD_FILE, JSON.stringify(currentPrd, null, 2));
             logger.error('Task failed verification limit. Stopping factory.', { taskId: task.id });
-            await shutdown(1);
+            shutdown(1);
         }
     }
 
     await logger.close();
+    shutdown(0);
 }
 
 // Run
@@ -437,6 +438,6 @@ main().catch(async (error) => {
     } else {
         console.error('💥 Fatal error:', error);
     }
-    await shutdown(1);
+    shutdown(1);
 });
 
