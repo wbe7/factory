@@ -122,9 +122,17 @@ async function main() {
     ];
 
     const results = await Promise.all(scenarios.map(async (scenario) => {
-        const runner = new ScenarioRunner(scenario);
-        const result = await runner.run();
-        return { scenario, result };
+        try {
+            const runner = new ScenarioRunner(scenario);
+            const result = await runner.run();
+            return { scenario, result };
+        } catch (e) {
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            return {
+                scenario,
+                result: { success: false, logs: '', error: `Runner initialization failed: ${errorMsg}` }
+            };
+        }
     }));
 
     console.log('\n=======================================');
@@ -152,4 +160,7 @@ async function main() {
     }
 }
 
-main();
+main().catch((err) => {
+    console.error('💥 A fatal error occurred in the E2E test runner:', err);
+    process.exit(1);
+});

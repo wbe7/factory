@@ -17,6 +17,10 @@ export interface ScenarioConfig {
 
 // Global cleanup exported to be called once
 export async function cleanAllSandboxes() {
+    if (!SANDBOX_ROOT.endsWith('.sandbox')) {
+        console.error(`❌ Safety Check Failed: Refusing to clean non-sandbox directory: ${SANDBOX_ROOT}`);
+        return;
+    }
     console.log(`🧹 Cleaning sandbox root: ${SANDBOX_ROOT}`);
     await $`rm -rf ${SANDBOX_ROOT}/*`.quiet().nothrow();
 }
@@ -51,13 +55,13 @@ export class ScenarioRunner {
             'docker', 'run',
             '--name', this.containerName,
             '-v', `${scenarioDir}:/app/target_project`,
-            '-v', `${process.env.HOME}/.config/opencode:/root/.config/opencode`,
+            ...(process.env.HOME ? ['-v', `${process.env.HOME}/.config/opencode:/root/.config/opencode`] : []),
             '-v', '/var/run/docker.sock:/var/run/docker.sock',
             // Pass minimal env vars needed
             '-e', `OPENAI_API_KEY=${process.env.OPENAI_API_KEY || ''}`,
             '-e', `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`,
             '-e', `GOOGLE_API_KEY=${process.env.GOOGLE_API_KEY || ''}`,
-            'wbe7/factory:latest',
+            'wbe7/factory:test',
             ...this.config.args,
             '--log-level', 'debug'
         ];

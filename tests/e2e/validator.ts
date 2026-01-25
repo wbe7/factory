@@ -31,7 +31,11 @@ export async function validateWithLlm(
     try {
         prdContent = await fs.readFile(path.join(scenarioDir, 'prd.json'), 'utf-8');
     } catch (e) {
-        prdContent = '(No prd.json found)';
+        if (e instanceof Error && (e as any).code === 'ENOENT') {
+            prdContent = '(No prd.json found)';
+        } else {
+            prdContent = `(Error reading prd.json: ${e instanceof Error ? e.message : String(e)})`;
+        }
     }
 
     // 1.1 Secure Judge Sandbox
