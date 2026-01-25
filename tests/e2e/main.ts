@@ -15,7 +15,7 @@ async function main() {
         {
             name: '01_NEW_PROJECT',
             description: 'Start from empty directory, create a Python script.',
-            args: ['Create a hello world python script'],
+            args: ['--planning-cycles', '5', '--verify-cycles', '5', 'Create a hello world python script'],
             validation: async (log, dir) => {
                 return validateWithLlm(log, dir, {
                     scenarioName: 'NEW_PROJECT',
@@ -33,7 +33,7 @@ async function main() {
             setup: async (dir) => {
                 await fs.writeFile(path.join(dir, 'main.go'), 'package main\n\nfunc main() {\n  println("Hello")\n}');
             },
-            args: ['Add a println line to main.go'],
+            args: ['--planning-cycles', '5', '--verify-cycles', '5', 'Add a println line to main.go'],
             validation: async (log, dir) => {
                 return validateWithLlm(log, dir, {
                     scenarioName: 'BROWNFIELD',
@@ -70,7 +70,7 @@ async function main() {
                 await fs.writeFile(path.join(dir, 'prd.json'), JSON.stringify(prd, null, 2));
                 await fs.writeFile(path.join(dir, 'existing.py'), 'print("ok")');
             },
-            args: ['Create a file named VERSION.txt with content 1.0.0'],
+            args: ['--planning-cycles', '5', '--verify-cycles', '5', 'Create a file named VERSION.txt with content 1.0.0'],
             validation: async (log, dir) => {
                 return validateWithLlm(log, dir, {
                     scenarioName: 'UPDATE_PROJECT',

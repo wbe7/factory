@@ -28,10 +28,10 @@ export type { ProjectType } from './context';
 export const DEFAULT_CONFIG: Omit<FactoryConfig, 'goal'> = {
     model: 'opencode/big-pickle',
     baseUrl: null,
-    planningCycles: 3,
-    verificationCycles: 3,
+    planningCycles: 5,
+    verificationCycles: 5,
     workerIterations: 10,
-    timeout: 3600,
+    timeout: 0,
     maxCost: null,
     dryRun: false,
     mockLlm: false,
