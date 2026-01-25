@@ -121,21 +121,28 @@ async function main() {
         }
     ];
 
-    let failures = 0;
-
-    for (const scenario of scenarios) {
+    const results = await Promise.all(scenarios.map(async (scenario) => {
         const runner = new ScenarioRunner(scenario);
         const result = await runner.run();
+        return { scenario, result };
+    }));
 
+    console.log('\n=======================================');
+    console.log('📊 E2E TEST SUMMARY');
+    console.log('=======================================');
+
+    let failures = 0;
+    for (const { scenario, result } of results) {
         if (result.success) {
-            console.log(`✅ ${scenario.name}: PASSED`);
+            console.log(`✅ ${scenario.name.padEnd(20)}: PASSED`);
         } else {
-            console.error(`❌ ${scenario.name}: FAILED`);
+            console.error(`❌ ${scenario.name.padEnd(20)}: FAILED`);
             console.error(`   Reason: ${result.error}`);
             failures++;
         }
     }
 
+    console.log('=======================================');
     if (failures === 0) {
         console.log(`🎉 All ${scenarios.length} scenarios passed!`);
         process.exit(0);

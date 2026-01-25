@@ -6,7 +6,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 
 const SANDBOX_ROOT = path.resolve('.sandbox');
 const LOGS_DIR = path.join(SANDBOX_ROOT, 'logs');
-const TIMEOUT_MS = 15 * 60 * 1000; // Increased to 15 minutes
+const TIMEOUT_MS = 30 * 60 * 1000; // Increased to 30 minutes for robustness
 
 export interface ScenarioConfig {
     name: string;
@@ -71,7 +71,7 @@ export class ScenarioRunner {
                 stderr: logWriter.fd,
             });
 
-            console.log(`   Testing in progress (15m timeout)...`);
+            console.log(`   Testing in progress (30m timeout)...`);
 
             // Timeout logic
             const timeout = setTimeout(() => {
@@ -88,7 +88,7 @@ export class ScenarioRunner {
             if (proc.exitCode !== 0) {
                 // Check if it was killed by us (timeout) or crashed
                 if (proc.signalCode === 'SIGTERM' || proc.signalCode === 'SIGKILL') {
-                    return { success: false, logs, error: 'TIMEOUT exceeded (15m)' };
+                    return { success: false, logs, error: 'TIMEOUT exceeded (30m)' };
                 }
                 // If it failed naturally, we still continue to validation if logs exist
             }

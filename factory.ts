@@ -426,6 +426,7 @@ async function main(): Promise<void> {
     }
 
     await logger.close();
+    await shutdown(0);
 }
 
 // Run

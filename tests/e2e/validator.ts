@@ -1,8 +1,9 @@
-
 import { runOpencode } from '../../src/worker';
 import { DEFAULT_CONFIG } from '../../src/types';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { tmpdir } from 'os';
+import * as crypto from 'crypto';
 
 export interface ValidationContext {
     scenarioName: string;
@@ -33,6 +34,31 @@ export async function validateWithLlm(
         prdContent = '(No prd.json found)';
     }
 
+    // 1.1 Secure Judge Sandbox
+    const judgeHome = path.join(tmpdir(), `factory_judge_${crypto.randomUUID()}`);
+    await fs.mkdir(judgeHome, { recursive: true });
+
+    const judgeConfig = {
+        tools: {
+            bash: false,
+            write: false,
+            edit: false,
+            patch: false,
+            glob: false,
+            grep: false,
+            list: false,
+            webfetch: false,
+            task: false
+        },
+        permissions: {
+            bash: "deny",
+            write: "deny",
+            edit: "deny"
+        }
+    };
+
+    await fs.writeFile(path.join(judgeHome, '.opencode.json'), JSON.stringify(judgeConfig, null, 2));
+
     // 2. Construct Prompt
     const PROMPT = `
 You are a Quality Assurance Judge for an AI Software Engineer named "Factory".
@@ -60,12 +86,13 @@ ${prdContent}
 
 ---
 EXECUTION LOGS:
-${logContent.slice(-10000)} 
-(Logs truncated to last 10k chars if too long)
+${logContent.length > 10000
+            ? logContent.slice(0, 2000) + "\n\n...[TRUNCATED FOR CONTEXT]...\n\n" + logContent.slice(-8000)
+            : logContent}
 
 ---
 INSTRUCTIONS:
-1. Did the Factory detect the correct scenario?
+1. Did the Factory detect the correct scenario? (Check the BEGINNING of logs)
 2. Did it complete the intended task (based on logs and file tree)?
 3. Are there any FATAL errors or panics in the logs? (Retries are okay, final failure is not)
 4. Did it satisfy all Custom Assertions?
@@ -88,7 +115,8 @@ FAIL
             model: process.env.FACTORY_MODEL || DEFAULT_CONFIG.model,
         };
 
-        const result = await runOpencode(PROMPT, config);
+        // Pass extraEnv to restrict judge
+        const result = await runOpencode(PROMPT, config, undefined, { HOME: judgeHome });
 
         console.log(`\n   📝 LLM Verdict:\n${result.replace(/^/gm, '      ')}\n`);
 
@@ -100,5 +128,12 @@ FAIL
 
     } catch (e) {
         return `LLM Validation Error: ${String(e)}`;
+    } finally {
+        // Cleanup judge sandbox
+        try {
+            await fs.rm(judgeHome, { recursive: true, force: true });
+        } catch {
+            // Ignore cleanup errors
+        }
     }
 }
