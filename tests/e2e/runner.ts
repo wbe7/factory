@@ -1,7 +1,7 @@
-
 import { $ } from 'bun';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as crypto from 'node:crypto';
 
 const SANDBOX_ROOT = path.resolve('.sandbox');
 const LOGS_DIR = path.join(SANDBOX_ROOT, 'logs');
@@ -25,7 +25,7 @@ export class ScenarioRunner {
     private containerName: string;
 
     constructor(private config: ScenarioConfig) {
-        this.containerName = `factory-e2e-${config.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+        this.containerName = `factory-e2e-${config.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${crypto.randomUUID().slice(0, 8)}`;
     }
 
     async run(): Promise<{ success: boolean; logs: string; error?: string }> {
