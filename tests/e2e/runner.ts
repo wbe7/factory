@@ -38,7 +38,7 @@ export class ScenarioRunner {
 
         // 1. Setup
         await fs.mkdir(scenarioDir, { recursive: true });
-        if (!existsSync(LOGS_DIR)) mkdirSync(LOGS_DIR, { recursive: true });
+        await fs.mkdir(LOGS_DIR, { recursive: true });
 
         if (this.config.setup) {
             console.log('   🛠️  Running setup...');

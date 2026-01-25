@@ -41,7 +41,7 @@ docker-test-env:
 		wbe7/factory:latest \
 		--dry-run "Test ENV vars" 2>&1 | grep -q 'test-model' && \
 		echo "✅ ENV vars working" || \
-
+		(echo "❌ ENV vars not propagated"; exit 1)
 # Full E2E Test Suite (Uses Docker + LLM Judge)
 .PHONY: full-e2e-test
 full-e2e-test:
