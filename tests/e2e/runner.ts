@@ -2,7 +2,6 @@
 import { $ } from 'bun';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { existsSync, mkdirSync } from 'node:fs';
 
 const SANDBOX_ROOT = path.resolve('.sandbox');
 const LOGS_DIR = path.join(SANDBOX_ROOT, 'logs');
