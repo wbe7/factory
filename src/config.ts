@@ -196,9 +196,9 @@ Usage: factory [options] "<goal>"
 Options:
   --model <model>           LLM model (default: opencode/big-pickle)
   --base-url <url>          Custom LLM endpoint (OpenAI-compatible)
-  --planning-cycles <n>     Max planning iterations (default: 5, 0=skip)
-  --verify-cycles <n>       Max verification iterations (default: 5, 0=skip)
-  --worker-iters <n>        Max worker iterations per task (default: 10, 0=skip)
+  --planning-cycles <n>     Max planning iterations (default: 30, 0=skip)
+  --verify-cycles <n>       Max verification iterations (default: 30, 0=skip)
+  --worker-iters <n>        Max worker iterations per task (default: 30, 0=skip)
   --timeout <seconds>       Global timeout (default: 0, 0=unlimited)
   --max-cost <usd>          Maximum cost limit in USD
   --log-file <path>         Enable file logging (JSON Lines format)
