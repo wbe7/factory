@@ -23,10 +23,12 @@ Existing Tests:
 **Task:**
 1.  **If NEW_PROJECT:** Create a full `prd.json` from scratch.
 2.  **If UPDATE_PROJECT:**
-    *   Analyze the User Goal and create NEW tasks to achieve it.
-    *   Keep ALL existing tasks unchanged (do not modify their status or passes).
-    *   Add new tasks at the end of `user_stories` array.
-    *   Ensure new tasks have correct dependencies on existing completed tasks.
+    *   Analyze the User Goal and update the plan to achieve it.
+    *   **COMPLETED TASKS ARE IMMUTABLE:** DO NOT modify any task with `"status": "completed"`. They must remain exactly as they are.
+    *   **PENDING TASKS ARE MUTABLE:** You MAY modify, reorder, or delete tasks that have `"status": "pending"` to better fit the new goal.
+    *   **IN-PLACE UPDATES:** If the plan needs correction (e.g., adding env vars), modify the existing pending tasks directly. DO NOT create new tasks describing the fix (e.g., "Fix PRD", "Update plan").
+    *   Add new tasks at the end if necessary.
+    *   Ensure new/modified tasks have correct dependencies.
 
 **CRITICAL RULES for new tasks:**
 - New tasks MUST have `"status": "pending"`

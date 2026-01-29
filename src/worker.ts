@@ -34,7 +34,7 @@ export interface WorkerLoopResult {
  * @param cwd - Optional working directory for the opencode process
  */
 export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: string, extraEnv: Record<string, string> = {}): Promise<string> {
-    const args = ['run'];
+    const args = ['--log-level', 'ERROR', 'run'];
 
     if (config.model) {
         args.push('-m', config.model);
@@ -49,7 +49,7 @@ export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: s
             cwd: cwd, // Pass cwd to spawn instead of using process.chdir
             stdin: Bun.file(tmpPromptFile),
             stdout: 'pipe',
-            stderr: 'inherit',
+            stderr: 'pipe',
             env: {
                 ...process.env,
                 ...(config.baseUrl ? { OPENAI_BASE_URL: config.baseUrl } : {}),
@@ -57,10 +57,15 @@ export async function runOpencode(prompt: string, config: FactoryConfig, cwd?: s
             },
         });
 
-        const output = await new Response(proc.stdout).text();
+        const [output, err] = await Promise.all([
+            new Response(proc.stdout).text(),
+            new Response(proc.stderr).text(),
+        ]);
+
         await proc.exited;
 
         if (proc.exitCode !== 0) {
+            if (err) console.error(err);
             throw new Error(`opencode exited with code ${proc.exitCode}`);
         }
 

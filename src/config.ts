@@ -45,15 +45,27 @@ function parsePositiveFloat(value: string, name: string): number {
  * Returns ONLY explicitly provided arguments (Partial) to allow proper layering.
  * Supports --flag=value and --flag value formats.
  */
+const SHORT_FLAGS: Record<string, string> = {
+    '-m': '--model',
+    '-d': '--dry-run',
+    '-v': '--verbose',
+    '-h': '--help'
+};
+
 export function parseArgs(args: string[]): Partial<FactoryConfig> {
     const config: Partial<FactoryConfig> = {};
-    const BOOLEAN_FLAGS = new Set(['dry-run', 'mock-llm', 'verbose', 'quiet', 'plan', 'verbose-planning']);
+    const BOOLEAN_FLAGS = new Set(['dry-run', 'mock-llm', 'verbose', 'quiet', 'plan', 'verbose-planning', 'force-new', 'force-brownfield']);
 
     let i = 0;
     while (i < args.length) {
-        const arg = args[i];
+        let arg = args[i];
 
-        if (arg === '--help' || arg === '-h') {
+        // Resolve short flags
+        if (SHORT_FLAGS[arg]) {
+            arg = SHORT_FLAGS[arg];
+        }
+
+        if (arg === '--help') {
             printHelp();
             process.exit(0);
         }
@@ -126,7 +138,10 @@ export function parseArgs(args: string[]): Partial<FactoryConfig> {
             }
         } else if (arg && !arg.startsWith('-')) {
             // Positional argument = goal
-            config.goal = arg;
+            // STRICT CHECK: Only take the first non-flag argument as goal.
+            if (!config.goal) {
+                config.goal = arg;
+            }
         }
 
         i++;

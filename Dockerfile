@@ -45,7 +45,7 @@ ENV PATH="$BUN_INSTALL/bin:$PATH"
 
 # Install Factory Dependencies globally
 # - opencode-ai: The LLM interface
-RUN bun install -g opencode-ai
+RUN bun install -g opencode-ai opencode-gemini-auth
 
 # Set working directory
 WORKDIR /app

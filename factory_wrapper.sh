@@ -31,6 +31,8 @@ docker run $DETACH_MODE $DOCKER_INTERACTIVE --rm \
   --name "$CONTAINER_NAME" \
   -v "$(pwd)":/app/target_project \
   -v "$HOME/.config/opencode":/root/.config/opencode \
+  -v "$HOME/.gemini":/root/.gemini \
+  -v "$HOME/.local/share/opencode":/root/.local/share/opencode \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
   -e OPENAI_BASE_URL="${OPENAI_BASE_URL:-}" \
@@ -38,6 +40,7 @@ docker run $DETACH_MODE $DOCKER_INTERACTIVE --rm \
   -e GOOGLE_API_KEY="${GOOGLE_API_KEY:-}" \
   -e GOOGLE_GENERATIVE_AI_API_KEY="${GOOGLE_GENERATIVE_AI_API_KEY:-${GOOGLE_API_KEY:-}}" \
   -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
+  -e GOOGLE_CLOUD_PROJECT="${GOOGLE_CLOUD_PROJECT:-}" \
   -e FACTORY_MODEL="${FACTORY_MODEL:-}" \
   -e FACTORY_TIMEOUT="${FACTORY_TIMEOUT:-}" \
   -e FACTORY_PLANNING_CYCLES="${FACTORY_PLANNING_CYCLES:-}" \

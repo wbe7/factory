@@ -53,3 +53,8 @@ full-e2e-test: docker-build-test
 	@echo "🚀 Running Full E2E Test Suite..."
 	bun tests/e2e/main.ts
 
+
+# Build multi-arch image and push to registry
+.PHONY: docker-publish
+docker-publish:
+	docker buildx build --platform linux/amd64,linux/arm64 -t wbe7/factory:latest --push .
