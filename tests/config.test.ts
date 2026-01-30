@@ -90,6 +90,34 @@ describe('CLI Argument Parsing', () => {
         expect(config.verbose).toBe(true);
         expect(config.goal).toBe('My goal here');
     });
+
+    // --- New Tests for Phase 3.6 (Bug Fixes) ---
+
+    test('parses short flags (-m for --model)', () => {
+        const config = parseArgs(['-m', 'short-model', 'goal']);
+        expect(config.model).toBe('short-model');
+    });
+
+    test('parses short flags (-d for --dry-run)', () => {
+        const config = parseArgs(['-d', 'goal']);
+        expect(config.dryRun).toBe(true);
+    });
+
+    test('ignores flags as goal', () => {
+        // "factory -m model" should NOT treat "-m" or "model" as goal (if it was somehow confused)
+        // Ideally parseArgs returns goal=undefined here if no other string is present
+        const config = parseArgs(['-m', 'my-model']);
+        expect(config.goal).toBeUndefined();
+    });
+
+    test('prevents flags being captured as goal when mixed', () => {
+        // factory -m model -d
+        // Should NOT set goal to "-d"
+        const config = parseArgs(['-m', 'my-model', '-d']);
+        expect(config.model).toBe('my-model');
+        expect(config.dryRun).toBe(true);
+        expect(config.goal).toBeUndefined();
+    });
 });
 
 describe('Environment Variable Config', () => {

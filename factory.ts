@@ -117,6 +117,21 @@ async function runAgent(
 }
 
 /**
+ * Check if any opencode configuration or auth file exists.
+ */
+function hasOpencodeConfig(): boolean {
+    const configPaths = new Set([
+        `${Bun.env.HOME}/.config/opencode/config.json`,
+        `${Bun.env.HOME}/.config/opencode/opencode.json`,
+        `${Bun.env.HOME}/.local/share/opencode/auth.json`,
+        '/root/.config/opencode/config.json',
+        '/root/.config/opencode/opencode.json',
+        '/root/.local/share/opencode/auth.json'
+    ]);
+    return Array.from(configPaths).some(path => existsSync(path));
+}
+
+/**
  * Main factory execution
  */
 async function main(): Promise<void> {
@@ -171,8 +186,7 @@ async function main(): Promise<void> {
 
     // Warn if common API keys are missing, BUT only if no config file exists
     // (User might have configured providers in ~/.config/opencode/config.json)
-    const hasConfig = existsSync(`${Bun.env.HOME}/.config/opencode/config.json`) ||
-        existsSync('/root/.config/opencode/config.json');
+    const hasConfig = hasOpencodeConfig();
 
     // Also skip warning if using a typically free model
     const isFreeModel = config.model.includes('free') || config.model.includes('local') || config.model.includes('pickle');
